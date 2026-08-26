@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧烟感 · 管理中心</title>
+    <link rel="stylesheet" href="/css/v5.css">
+</head>
+
+<body class="admin-page">
+<div class="noise"></div>
+<div class="admin-layout-v51">
+    <aside class="admin-sidebar glass reveal visible">
+        <div class="side-brand">
+            <div class="glyph">S</div>
+            <div><strong>Smart Smoke</strong><span>Control Center</span></div>
+        </div>
+
+        <nav class="side-nav">
+            <button class="tab-button active" data-tab="overview"><span class="nav-icon">◫</span><span>Overview</span></button>
+            <button class="tab-button" data-tab="devices"><span class="nav-icon">◉</span><span>Devices</span></button>
+            <button class="tab-button" data-tab="users"><span class="nav-icon">◎</span><span>Residents</span></button>
+            <button class="tab-button" data-tab="alarms"><span class="nav-icon">△</span><span>Alerts</span></button>
+            <button class="tab-button" data-tab="records"><span class="nav-icon">⌁</span><span>Analytics</span></button>
+        </nav>
+
+        <div class="side-bottom">
+            <a class="side-link" href="/technical.html">技术详情 <span>↗</span></a>
+            <div class="side-user">
+                <div class="avatar">A</div>
+                <div class="side-user-copy"><strong id="adminUsername">--</strong><span id="adminMeta">管理员</span></div>
+                <button class="side-logout" title="退出登录" onclick="SmokeAuth.logout()">↗</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="admin-main-v51">
+        <header class="admin-head-v51 reveal visible">
+            <div>
+                <div class="small-caps">CONTROL CENTER · LIVE</div>
+                <h1 id="adminGreeting">Good afternoon.</h1>
+                <p>用户、设备、告警与端云控制，在一个界面里实时协同。</p>
+            </div>
+            <div class="head-status">
+                <span class="date-chip" id="liveDateChip">Live</span>
+                <i class="live-dot"></i>
+            </div>
+        </header>
+
+        <section id="panel-overview" class="tab-panel active">
+    <section class="metrics v51-metrics">
+        <article class="metric reveal" data-delay="70">
+            <div class="stat-label">设备总数</div>
+            <div id="deviceCount" class="v">--</div>
+            <div class="delta">已注册烟感设备</div>
+        </article>
+        <article class="metric reveal" data-delay="105">
+            <div class="stat-label">在线设备</div>
+            <div id="onlineCount" class="v metric-green">--</div>
+            <div class="delta">当前连接 IoTDA</div>
+        </article>
+        <article class="metric reveal" data-delay="140">
+            <div class="stat-label">活动告警</div>
+            <div id="activeAlarmCount" class="v metric-red">--</div>
+            <div class="delta">当前未恢复事件</div>
+        </article>
+        <article class="metric reveal" data-delay="175">
+            <div class="stat-label">居民账号</div>
+            <div id="residentCount" class="v">--</div>
+            <div id="adminCountNote" class="delta">管理员 --</div>
+        </article>
+    </section>
+
+    <section class="admin-grid v51-overview-grid">
+        <article class="panel device-card reveal" data-delay="150">
+            <div class="panel-headline">
+                <div>
+                    <div class="small-caps">LIVE DEVICE</div>
+                    <h3>BearPi Smoke-001</h3>
+                </div>
+                <button class="button small" onclick="switchTab('devices')">设备管理</button>
+            </div>
+            <div id="overviewDeviceControl" class="v51-device-live">
+                <div class="showcase-offline">正在同步设备状态…</div>
+            </div>
+        </article>
+
+        <article class="panel reveal" data-delay="205">
+            <div class="panel-headline">
+                <div>
+                    <div class="small-caps">SYSTEM ACTIVITY</div>
+                    <h3>系统状态</h3>
+                </div>
+                <span class="status-badge">LIVE</span>
+            </div>
+
+            <div class="activity-list">
+                <div class="activity-item">
+                    <i class="activity-dot green"></i>
+                    <div><strong>最新烟雾浓度</strong><span id="overviewSmoke">--</span></div>
+                </div>
+                <div class="activity-item">
+                    <i class="activity-dot blue"></i>
+                    <div><strong>云端判定</strong><span id="overviewCloudState">--</span></div>
+                </div>
+                <div class="activity-item">
+                    <i class="activity-dot purple"></i>
+                    <div><strong>风险评分</strong><span id="overviewRisk">--</span></div>
+                </div>
+                <div class="activity-item">
+                    <i class="activity-dot orange"></i>
+                    <div><strong>最新采集</strong><span id="overviewTime">--</span></div>
+                </div>
+            </div>
+
+            <div class="health-mini-grid">
+                <div><span>健康异常</span><b id="abnormalDeviceCount">--</b></div>
+                <div><span>待人工确认</span><b id="unackAlarmCount">--</b></div>
+            </div>
+        </article>
+    </section>
+
+    <section class="admin-intelligence reveal" data-delay="225">
+        <article class="innov-card">
+            <div class="innov-card-head">
+                <div>
+                    <div class="innov-card-title">Trust Score · 数据可信度</div>
+                    <div class="innov-card-sub">综合设备连接、数据更新时间和传感器状态。</div>
+                </div>
+                <span id="adminTrustBadge" class="status-badge">--</span>
+            </div>
+            <div class="admin-trust-compact">
+                <div id="adminTrustRing" class="trust-ring" style="--trust:0"><div><strong id="adminTrustScore">--</strong><span>confidence</span></div></div>
+                <div class="trust-copy"><div id="adminTrustLabel" class="trust-label">正在评估</div><div id="adminTrustNote" class="trust-note">连接、新鲜度和传感器健康共同决定可信度。</div></div>
+            </div>
+            <div class="innov-insight" id="adminTrustInsight">当前监测值的可信度由设备连接、数据新鲜度和传感器状态共同决定。</div>
+        </article>
+
+        <article class="innov-card">
+            <div class="innov-card-head">
+                <div>
+                    <div class="innov-card-title">Protection Mode · 端云协同</div>
+                    <div class="innov-card-sub">查看本地保护、云端分析与安全优先策略的当前状态。</div>
+                </div>
+                <span id="adminProtectionBadge" class="status-badge">--</span>
+            </div>
+            <div class="protect-list">
+                <div class="protect-item"><div class="protect-left"><i id="adminEdgeDot" class="protect-dot"></i><div><div class="protect-name">Edge safety</div><div class="protect-desc">本地烟雾判断与声光策略</div></div></div><div id="adminEdgeValue" class="protect-value">--</div></div>
+                <div class="protect-item"><div class="protect-left"><i id="adminCloudDot" class="protect-dot"></i><div><div class="protect-name">Cloud analysis</div><div class="protect-desc">趋势校验与误报抑制</div></div></div><div id="adminCloudValue" class="protect-value">--</div></div>
+                <div class="protect-item"><div class="protect-left"><i id="adminRemoteDot" class="protect-dot"></i><div><div class="protect-name">Safety override</div><div class="protect-desc">真实高危状态优先于人工关闭</div></div></div><div id="adminRemoteValue" class="protect-value">--</div></div>
+            </div>
+        </article>
+
+        <article class="innov-card admin-event-compact">
+            <div class="innov-card-head">
+                <div>
+                    <div class="innov-card-title">Latest Safety Event</div>
+                    <div class="innov-card-sub">查看最近一次告警的触发、人工确认与恢复过程。</div>
+                </div>
+                <span id="adminEventBadge" class="status-badge">--</span>
+            </div>
+            <div id="adminEventTimeline" class="event-empty">暂无安全事件</div>
+        </article>
+    </section>
+
+
+    <section class="admin-closed-loop reveal" data-delay="240">
+        <article class="innov-card">
+            <div class="innov-card-head">
+                <div>
+                    <div class="innov-card-title">Device Health Index</div>
+                    <div class="innov-card-sub">综合网络、传感器与数据新鲜度评估设备状态。</div>
+                </div>
+                <span id="adminHealthIndexBadge" class="status-badge">--</span>
+            </div>
+            <div class="admin-trust-compact">
+                <div id="adminHealthIndexRing" class="trust-ring" style="--trust:0"><div><strong id="adminHealthIndexScore">--</strong><span>health</span></div></div>
+                <div class="trust-copy">
+                    <div id="adminHealthIndexLabel" class="trust-label">正在评估</div>
+                    <div id="adminHealthIndexNote" class="trust-note">连接设备后将生成维护建议。</div>
+                </div>
+            </div>
+            <div class="health-components admin-health-components">
+                <div><span>Network</span><div class="health-bar"><i id="adminHealthNetworkBar"></i></div><b id="adminHealthNetworkValue">--</b></div>
+                <div><span>Sensor</span><div class="health-bar"><i id="adminHealthSensorBar"></i></div><b id="adminHealthSensorValue">--</b></div>
+                <div><span>Freshness</span><div class="health-bar"><i id="adminHealthFreshnessBar"></i></div><b id="adminHealthFreshnessValue">--</b></div>
+            </div>
+        </article>
+
+        <article class="innov-card">
+            <div class="innov-card-head">
+                <div>
+                    <div class="innov-card-title">事件反馈</div>
+                    <div class="innov-card-sub">查看居民对已结束告警的实际情况反馈。</div>
+                </div>
+                <span id="feedbackRateBadge" class="status-badge">--</span>
+            </div>
+            <div class="feedback-overview">
+                <div class="feedback-big">
+                    <strong id="feedbackRateValue">--</strong>
+                    <span>闭环事件反馈率</span>
+                </div>
+                <div id="feedbackDistribution" class="feedback-distribution"></div>
+            </div>
+            <div id="feedbackAdminNote" class="innov-insight">暂无居民事件反馈。</div>
+        </article>
+    </section>
+
+    <section class="v51-quick reveal" data-delay="245">
+        <button onclick="switchTab('users')"><span>Residents</span><b>用户管理 ↗</b></button>
+        <button onclick="switchTab('devices')"><span>Devices</span><b>设备绑定 ↗</b></button>
+        <button onclick="showActiveAlarms()"><span>Alerts</span><b>活动告警 ↗</b></button>
+        <button onclick="switchTab('records')"><span>Analytics</span><b>监测记录 ↗</b></button>
+    </section>
+</section>
+
+        <section id="panel-devices" class="tab-panel">
+        <div class="section card">
+            <div class="section-head">
+                <div>
+                    <h2>设备管理</h2>
+                    <div class="tip">维护设备位置、绑定居民，并可对真实在线设备下发蜂鸣器/LED命令</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <select id="deviceOnlineFilter" class="control" onchange="loadDevices()">
+                    <option value="">全部连接状态</option>
+                    <option value="1">在线</option>
+                    <option value="0">离线</option>
+                </select>
+
+                <select id="deviceHealthFilter" class="control" onchange="loadDevices()">
+                    <option value="all">全部健康状态</option>
+                    <option value="NORMAL">正常</option>
+                    <option value="STALE">数据过期</option>
+                    <option value="OFFLINE">设备离线</option>
+                    <option value="SENSOR_FAULT">传感器异常</option>
+                </select>
+
+                <button class="button small" onclick="loadDevices()">刷新设备</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>设备ID</th>
+                        <th>位置</th>
+                        <th>绑定居民</th>
+                        <th>连接</th>
+                        <th>健康</th>
+                        <th>最后有效上报</th>
+                        <th>设备管理</th>
+                        <th>远程控制</th>
+                    </tr>
+                    </thead>
+                    <tbody id="deviceTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+        <section id="panel-users" class="tab-panel">
+        <div class="section card">
+            <div class="section-head">
+                <div>
+                    <h2>用户管理</h2>
+                    <div class="tip">新增、编辑、重置密码、删除账号；密码始终不会返回前端</div>
+                </div>
+
+                <button class="button primary" onclick="openCreateUser()">+ 新增用户</button>
+            </div>
+
+            <div class="toolbar">
+                <input id="userKeyword" class="control search-control"
+                       placeholder="搜索用户名 / 手机号 / 工号"
+                       onkeydown="if(event.key==='Enter') loadUsers()">
+
+                <select id="userRoleFilter" class="control" onchange="loadUsers()">
+                    <option value="all">全部角色</option>
+                    <option value="resident">居民</option>
+                    <option value="admin">管理员</option>
+                </select>
+
+                <button class="button small" onclick="loadUsers()">搜索</button>
+                <button class="button small" onclick="clearUserFilter()">清空</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>房间 / 工号</th>
+                        <th>手机号</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="userTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+        <section id="panel-alarms" class="tab-panel">
+        <div class="section card">
+            <div class="section-head">
+                <div>
+                    <h2>告警管理</h2>
+                    <div class="tip">按状态筛选全部设备告警，管理员可直接确认待处理告警</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <select id="alarmStatusFilter" class="control" onchange="loadAlarms()">
+                    <option value="all">全部恢复状态</option>
+                    <option value="active">活动中</option>
+                    <option value="recovered">已恢复</option>
+                </select>
+
+                <select id="alarmAckFilter" class="control" onchange="loadAlarms()">
+                    <option value="">全部确认状态</option>
+                    <option value="0">待确认</option>
+                    <option value="1">已确认</option>
+                </select>
+
+                <select id="alarmDeviceFilter" class="control" onchange="loadAlarms()">
+                    <option value="">全部设备</option>
+                </select>
+
+                <input id="alarmKeyword" class="control search-control"
+                       placeholder="搜索位置 / 原因"
+                       onkeydown="if(event.key==='Enter') loadAlarms()">
+
+                <button class="button small" onclick="loadAlarms()">筛选</button>
+                <button class="button small" onclick="clearAlarmFilter()">清空</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>设备</th>
+                        <th>位置</th>
+                        <th>告警时间</th>
+                        <th>级别</th>
+                        <th>人工确认</th>
+                        <th>恢复状态</th>
+                        <th>原因</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="alarmTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+        <section id="panel-records" class="tab-panel">
+        <div class="section card">
+            <div class="section-head">
+                <div>
+                    <h2>监测记录</h2>
+                    <div class="tip">管理员查看全部设备最近烟雾采集与端云判定结果</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <select id="recordDeviceFilter" class="control" onchange="loadRecords()">
+                    <option value="">全部设备</option>
+                </select>
+
+                <select id="recordStateFilter" class="control" onchange="loadRecords()">
+                    <option value="all">全部云端状态</option>
+                    <option value="NORMAL">NORMAL</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ALARM">ALARM</option>
+                </select>
+
+                <select id="recordLimit" class="control" onchange="loadRecords()">
+                    <option value="20">最近20条</option>
+                    <option value="50" selected>最近50条</option>
+                    <option value="100">最近100条</option>
+                </select>
+
+                <button class="button small" onclick="loadRecords()">刷新记录</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>设备</th>
+                        <th>时间</th>
+                        <th>烟雾浓度</th>
+                        <th>边缘状态</th>
+                        <th>烟雾倍率</th>
+                        <th>云端状态</th>
+                        <th>风险分数</th>
+                        <th>判定原因</th>
+                    </tr>
+                    </thead>
+                    <tbody id="recordTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+        <div class="footer">智慧烟感预警系统 · 管理员控制台</div>
+    </main>
+</div>
+
+<!-- =========================
+     用户新增 / 编辑
+     ========================= -->
+<dialog id="userDialog">
+    <div class="modal-head">
+        <h3 id="userDialogTitle">新增用户</h3>
+        <button class="modal-close" onclick="closeDialog('userDialog')">×</button>
+    </div>
+
+    <form id="userForm" onsubmit="submitUser(event)">
+        <div class="modal-body">
+            <input type="hidden" id="editUserId">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input id="userUsername" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">角色</label>
+                    <select id="userRole" class="form-input" onchange="refreshUserRoleFields()">
+                        <option value="resident">居民</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="newPasswordGroup" class="form-group">
+                <label class="form-label">初始密码</label>
+                <input id="userPassword" class="form-input" type="password" autocomplete="new-password">
+                <div class="form-help">新增账号时必填，长度6-64个字符；编辑时通过“重置密码”单独修改。</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">手机号</label>
+                <input id="userPhone" class="form-input" type="tel">
+            </div>
+
+            <div id="residentFields">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">楼栋</label>
+                        <input id="userBuilding" class="form-input" type="number" min="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">楼层</label>
+                        <input id="userFloor" class="form-input" type="number" min="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">房间</label>
+                    <input id="userRoom" class="form-input" type="number" min="1">
+                    <div class="form-help">已绑定给该居民的设备，会随居民房间修改同步更新位置。</div>
+                </div>
+            </div>
+
+            <div id="adminFields" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">管理员工号</label>
+                    <input id="userJobNum" class="form-input">
+                </div>
+            </div>
+
+            <div id="userFormError" class="modal-error"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="button" onclick="closeDialog('userDialog')">取消</button>
+            <button id="saveUserButton" type="submit" class="button primary">保存</button>
+        </div>
+    </form>
+</dialog>
+
+
+<!-- =========================
+     重置密码
+     ========================= -->
+<dialog id="passwordDialog">
+    <div class="modal-head">
+        <h3>重置用户密码</h3>
+        <button class="modal-close" onclick="closeDialog('passwordDialog')">×</button>
+    </div>
+
+    <form onsubmit="submitPasswordReset(event)">
+        <div class="modal-body">
+            <input type="hidden" id="passwordUserId">
+
+            <div class="form-group">
+                <label class="form-label">账号</label>
+                <input id="passwordUsername" class="form-input" disabled>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">新密码</label>
+                <input id="newPassword" class="form-input" type="password" autocomplete="new-password" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">确认新密码</label>
+                <input id="newPasswordAgain" class="form-input" type="password" autocomplete="new-password" required>
+            </div>
+
+            <div id="passwordFormError" class="modal-error"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="button" onclick="closeDialog('passwordDialog')">取消</button>
+            <button type="submit" class="button primary">确认重置</button>
+        </div>
+    </form>
+</dialog>
+
+
+<!-- =========================
+     设备编辑 / 居民绑定
+     ========================= -->
+<dialog id="deviceDialog">
+    <div class="modal-head">
+        <h3>设备资料与居民绑定</h3>
+        <button class="modal-close" onclick="closeDialog('deviceDialog')">×</button>
+    </div>
+
+    <form onsubmit="submitDevice(event)">
+        <div class="modal-body">
+            <input type="hidden" id="editDeviceId">
+
+            <div class="form-group">
+                <label class="form-label">设备ID</label>
+                <input id="deviceIdDisplay" class="form-input" disabled>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">绑定居民</label>
+                <select id="deviceResident" class="form-input" onchange="residentBindingChanged()">
+                    <option value="">不绑定居民</option>
+                </select>
+                <div class="form-help">选择居民后，设备位置自动与该居民房间保持一致。</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">楼栋</label>
+                    <input id="deviceBuilding" class="form-input" type="number" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">楼层</label>
+                    <input id="deviceFloor" class="form-input" type="number" min="1" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">房间</label>
+                <input id="deviceRoom" class="form-input" type="number" min="1" required>
+            </div>
+
+            <div id="deviceFormError" class="modal-error"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="button" onclick="closeDialog('deviceDialog')">取消</button>
+            <button type="submit" class="button primary">保存设备资料</button>
+        </div>
+    </form>
+</dialog>
+
+
+<dialog id="confirmDialog">
+    <div class="modal-head">
+        <h3 id="confirmTitle">确认操作</h3>
+        <button class="modal-close" type="button" onclick="resolveV5Confirm(false)">×</button>
+    </div>
+    <div class="modal-body">
+        <div id="confirmText" style="color:#9299a7;font-size:13px;line-height:1.7"></div>
+    </div>
+    <div class="modal-actions">
+        <button class="button" type="button" onclick="resolveV5Confirm(false)">取消</button>
+        <button id="confirmOkButton" class="button primary" type="button" onclick="resolveV5Confirm(true)">确认</button>
+    </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script src="/js/auth.js"></script>
+<script>
+    const adminState = {
+        currentUser: null,
+        overview: {},
+        devices: [],
+        users: [],
+        alarms: [],
+        records: [],
+        latestAlarm: null,
+        feedbackSummary: null,
+        deviceInsight: null
+    };
+
+    let toastTimer = null;
+    let confirmResolver = null;
+
+    function v5Confirm(title, text, okText = "确认", mode = "primary") {
+        const dialog = document.getElementById("confirmDialog");
+        document.getElementById("confirmTitle").innerText = title;
+        document.getElementById("confirmText").innerText = text;
+        const ok = document.getElementById("confirmOkButton");
+        ok.innerText = okText;
+        ok.className = mode === "danger" ? "button danger" : "button primary";
+        dialog.showModal();
+        return new Promise(resolve => { confirmResolver = resolve; });
+    }
+
+    function resolveV5Confirm(value) {
+        const dialog = document.getElementById("confirmDialog");
+        if (dialog.open) dialog.close();
+        if (confirmResolver) {
+            const resolve = confirmResolver;
+            confirmResolver = null;
+            resolve(Boolean(value));
+        }
+    }
+
+    /* =========================
+       通用工具
+       ========================= */
+    function escapeHtml(value) {
+        return String(value ?? "--")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function formatNumber(value, digits = 3) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n.toFixed(digits) : "--";
+    }
+
+    function setMetric(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const n = Number(value);
+        if (!Number.isFinite(n)) {
+            el.innerText = "--";
+            return;
+        }
+        if (window.V5Motion) {
+            V5Motion.countTo(el, n, 0, 620);
+        } else {
+            el.innerText = String(n);
+        }
+    }
+
+    function showToast(message, type = "success") {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = `toast ${type} show`;
+
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.remove("show");
+        }, 2600);
+    }
+
+    async function api(url, options = {}) {
+        const response = await fetch(url, options);
+
+        let data = null;
+        const text = await response.text();
+
+        if (text) {
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                data = text;
+            }
+        }
+
+        if (!response.ok) {
+            const message = data && typeof data === "object" && data.message
+                ? data.message
+                : `请求失败（HTTP ${response.status}）`;
+            throw new Error(message);
+        }
+
+        return data;
+    }
+
+    function closeDialog(id) {
+        const dialog = document.getElementById(id);
+        if (dialog.open) dialog.close();
+    }
+
+    function switchTab(name) {
+        document.querySelectorAll(".tab-button").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.tab === name);
+        });
+
+        document.querySelectorAll(".tab-panel").forEach(panel => {
+            panel.classList.toggle("active", panel.id === `panel-${name}`);
+        });
+
+        if (name === "overview") loadOverview();
+        if (name === "devices") loadDevices();
+        if (name === "users") loadUsers();
+        if (name === "alarms") loadAlarms();
+        if (name === "records") loadRecords();
+    }
+
+    document.querySelectorAll(".tab-button").forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    /* =========================
+       管理员身份
+       ========================= */
+    async function ensureAdmin() {
+        if (!SmokeAuth.requireLogin()) {
+            return null;
+        }
+
+        let user = SmokeAuth.getUser();
+
+        if (!user) {
+            try {
+                user = await api("/api/auth/me");
+                SmokeAuth.saveUser(user);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        if (user.role !== "admin") {
+            window.location.replace("/index.html");
+            return null;
+        }
+
+        adminState.currentUser = user;
+
+        const hour = new Date().getHours();
+        document.getElementById("adminGreeting").innerText = hour < 12
+            ? "Good morning."
+            : hour < 18
+                ? "Good afternoon."
+                : "Good evening.";
+
+        document.getElementById("adminUsername").innerText = user.username || "管理员";
+        document.getElementById("adminMeta").innerText = user.jobNum
+            ? `管理员 · 工号 ${user.jobNum}`
+            : "管理员";
+
+        const now = new Date();
+        const chip = document.getElementById("liveDateChip");
+        if (chip) chip.innerText = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} · Live`;
+
+        return user;
+    }
+
+    /* =========================
+       总览
+       ========================= */
+    async function loadOverview() {
+        try {
+            const results = await Promise.allSettled([
+                api("/api/admin/overview"),
+                api("/api/admin/alarms?limit=1"),
+                api("/api/admin/experience/feedback-summary")
+            ]);
+            adminState.overview = results[0].status === "fulfilled" ? (results[0].value || {}) : {};
+            const alarms = results[1].status === "fulfilled" && Array.isArray(results[1].value) ? results[1].value : [];
+            adminState.latestAlarm = alarms[0] || null;
+            adminState.feedbackSummary = results[2].status === "fulfilled" ? results[2].value : null;
+            renderOverview();
+        } catch (e) {
+            console.error("加载管理员总览失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    function renderOverview() {
+        const o = adminState.overview || {};
+        const latest = o.latestRecord || null;
+
+        setMetric("deviceCount", o.deviceCount);
+        setMetric("onlineCount", o.onlineCount);
+        setMetric("abnormalDeviceCount", o.abnormalDeviceCount);
+        setMetric("activeAlarmCount", o.activeAlarmCount);
+        setMetric("unackAlarmCount", o.unacknowledgedAlarmCount);
+        setMetric("residentCount", o.residentCount);
+        document.getElementById("adminCountNote").innerText = `管理员 ${o.adminCount ?? "--"}`;
+
+        document.getElementById("overviewSmoke").innerText = latest
+            ? `${formatNumber(latest.smokeConcentration)} ppm`
+            : "--";
+
+        document.getElementById("overviewCloudState").innerHTML = latest
+            ? cloudStateBadge(latest.cloudState)
+            : "--";
+
+        document.getElementById("overviewRisk").innerText = latest
+            ? formatNumber(latest.riskScore, 2)
+            : "--";
+
+        document.getElementById("overviewTime").innerText = latest?.collectTime || "--";
+        renderOverviewDeviceControl();
+        renderAdminIntelligence();
+        renderAdminClosedLoop();
+    }
+
+    /* =========================
+       设备管理
+       ========================= */
+    async function loadDevices() {
+        try {
+            const online = document.getElementById("deviceOnlineFilter").value;
+            const health = document.getElementById("deviceHealthFilter").value;
+
+            const params = new URLSearchParams();
+            if (online !== "") params.set("online", online);
+            if (health && health !== "all") params.set("healthStatus", health);
+
+            const query = params.toString();
+            const list = await api(`/api/admin/devices${query ? "?" + query : ""}`);
+
+            adminState.devices = Array.isArray(list) ? list : [];
+
+            adminState.deviceInsight = null;
+            const firstDevice = adminState.devices[0] || null;
+            if (firstDevice?.deviceId != null) {
+                try {
+                    adminState.deviceInsight = await api(`/api/device/${firstDevice.deviceId}/insight`);
+                } catch (e) {
+                    adminState.deviceInsight = null;
+                }
+            }
+
+            renderDevices();
+            renderOverviewDeviceControl();
+            renderAdminIntelligence();
+            renderAdminClosedLoop();
+            refreshDeviceFilterOptions();
+        } catch (e) {
+            console.error("加载设备失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    function healthBadge(value) {
+        switch (value) {
+            case "NORMAL": return '<span class="badge badge-green">正常</span>';
+            case "STALE": return '<span class="badge badge-yellow">数据过期</span>';
+            case "SENSOR_FAULT": return '<span class="badge badge-purple">传感器异常</span>';
+            case "OFFLINE": return '<span class="badge badge-gray">设备离线</span>';
+            default: return '<span class="badge badge-gray">--</span>';
+        }
+    }
+
+    function boundResidentName(userId) {
+        if (userId == null) return "未绑定";
+        const user = adminState.users.find(u => Number(u.id) === Number(userId));
+        return user ? user.username : `用户ID ${userId}`;
+    }
+
+    function renderDevices() {
+        const body = document.getElementById("deviceTable");
+
+        if (!adminState.devices.length) {
+            body.innerHTML = '<tr><td colspan="8" class="empty">暂无符合条件的设备</td></tr>';
+            return;
+        }
+
+        body.innerHTML = adminState.devices.map(d => {
+            const location = d.building != null && d.floor != null && d.room != null
+                ? `${d.building}栋 ${d.floor}层 ${d.room}室`
+                : "--";
+
+            const online = Number(d.status) === 1
+                ? '<span class="badge badge-green">在线</span>'
+                : '<span class="badge badge-gray">离线</span>';
+
+            const commandDisabled = Number(d.status) !== 1 ? "disabled" : "";
+
+            return `
+                <tr>
+                    <td>${escapeHtml(d.deviceId)}</td>
+                    <td>${escapeHtml(location)}</td>
+                    <td>${escapeHtml(boundResidentName(d.userId))}</td>
+                    <td>${online}</td>
+                    <td>${healthBadge(d.healthStatus)}</td>
+                    <td>${escapeHtml(d.lastReportTime)}</td>
+                    <td>
+                        <div class="action-group">
+                            <button class="button small" onclick="openDeviceEdit(${Number(d.deviceId)})">编辑 / 绑定</button>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="action-group">
+                            <button class="button small" ${commandDisabled}
+                                    onclick="sendDeviceCommand(${Number(d.deviceId)}, 'BEEP', 'ON')">蜂鸣器开</button>
+                            <button class="button small" ${commandDisabled}
+                                    onclick="sendDeviceCommand(${Number(d.deviceId)}, 'BEEP', 'OFF')">蜂鸣器关</button>
+                            <button class="button small" ${commandDisabled}
+                                    onclick="sendDeviceCommand(${Number(d.deviceId)}, 'LED', 'ON')">LED开</button>
+                            <button class="button small" ${commandDisabled}
+                                    onclick="sendDeviceCommand(${Number(d.deviceId)}, 'LED', 'OFF')">LED关</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function renderOverviewDeviceControl() {
+        const root = document.getElementById("overviewDeviceControl");
+        if (!root) return;
+
+        const d = adminState.devices[0];
+        const latest = adminState.overview?.latestRecord || null;
+
+        if (!d) {
+            root.innerHTML = '<div class="showcase-offline">当前没有登记设备</div>';
+            return;
+        }
+
+        const location = d.building != null && d.floor != null && d.room != null
+            ? `${d.building}栋 · ${d.floor}层 · ${d.room}室`
+            : "位置未配置";
+        const online = Number(d.status) === 1;
+        const disabled = online ? "" : "disabled";
+        const smoke = latest ? formatNumber(latest.smokeConcentration, 3) : "--";
+        const edge = latest?.edgeState || "--";
+        const cloud = latest?.cloudState || "--";
+        const risk = latest ? formatNumber(latest.riskScore, 1) : "--";
+
+        root.innerHTML = `
+            <div class="device-hero-v51">
+                <div>
+                    <div class="device-name-v51">${smoke} <span>ppm</span></div>
+                    <div class="device-location-v51">${escapeHtml(location)} · ${escapeHtml(boundResidentName(d.userId))}</div>
+                    <div class="device-location-v51">边缘 ${escapeHtml(edge)} · 云端 ${escapeHtml(cloud)} · 风险 ${escapeHtml(risk)}</div>
+                </div>
+                <span class="online-v51 ${online ? 'is-online' : ''}"><i class="live-dot"></i>${online ? 'Online' : 'Offline'}</span>
+            </div>
+
+            <div class="control-grid-v51">
+                <div class="control-card-v51">
+                    <div class="control-top-v51">
+                        <div class="control-icon-v51">◉</div>
+                        <div class="control-actions-v51">
+                            <button ${disabled} onclick="sendDeviceCommand(${Number(d.deviceId)}, 'LED', 'ON')">ON</button>
+                            <button ${disabled} onclick="sendDeviceCommand(${Number(d.deviceId)}, 'LED', 'OFF')">OFF</button>
+                        </div>
+                    </div>
+                    <div class="control-name-v51">Indicator LED</div>
+                    <div class="control-note-v51">云端手动接管 · 真实烟雾报警始终拥有最高优先级</div>
+                </div>
+
+                <div class="control-card-v51">
+                    <div class="control-top-v51">
+                        <div class="control-icon-v51">◖</div>
+                        <div class="control-actions-v51">
+                            <button ${disabled} onclick="sendDeviceCommand(${Number(d.deviceId)}, 'BEEP', 'ON')">ON</button>
+                            <button ${disabled} onclick="sendDeviceCommand(${Number(d.deviceId)}, 'BEEP', 'OFF')">OFF</button>
+                        </div>
+                    </div>
+                    <div class="control-name-v51">Alarm Buzzer</div>
+                    <div class="control-note-v51">远程蜂鸣器控制 · 危险状态下本地安全策略可强制接管</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function adminConfidenceModel(device, latest) {
+        if (!device) return {score:0,label:'Not available',note:'当前没有设备可评估。'};
+        const health = device.healthStatus || 'UNKNOWN';
+        const online = Number(device.status) === 1;
+        let score = online ? 96 : 38;
+        if (!latest) score -= 18;
+        if (health === 'STALE') score = Math.min(score,62);
+        if (health === 'OFFLINE') score = Math.min(score,35);
+        if (health === 'SENSOR_FAULT') score = 18;
+        if (health === 'NORMAL' && online && latest) score = 98;
+        score = Math.max(0,Math.min(100,Math.round(score)));
+        const label = score >= 90 ? 'Excellent' : score >= 70 ? 'Good' : score >= 45 ? 'Limited' : 'Low';
+        const note = score >= 90 ? '设备在线、上报连续、传感器健康，当前数据可信度高。'
+            : health === 'SENSOR_FAULT' ? '传感器异常，当前读数需要人工复核。'
+            : !online ? '云端无法确认实时连接，当前仅能参考最后已知数据。'
+            : '数据链路存在异常，建议检查设备与网络。';
+        return {score,label,note};
+    }
+
+    function renderAdminIntelligence() {
+        const d = adminState.devices[0] || null;
+        const latest = adminState.overview?.latestRecord || null;
+        const c = adminConfidenceModel(d,latest);
+        const ring = document.getElementById('adminTrustRing');
+        if (!ring) return;
+        ring.style.setProperty('--trust',c.score);
+        document.getElementById('adminTrustScore').textContent = c.score ? `${c.score}%` : '--';
+        document.getElementById('adminTrustLabel').textContent = c.label;
+        document.getElementById('adminTrustNote').textContent = c.note;
+        document.getElementById('adminTrustBadge').textContent = c.score >= 90 ? 'TRUSTED' : c.score >= 45 ? 'CHECK' : 'LIMITED';
+        document.getElementById('adminTrustInsight').textContent = latest?.decisionReason || '系统同时检查设备健康和云端判定，而不是只显示一个烟雾数字。';
+
+        const online = d && Number(d.status) === 1;
+        const health = d?.healthStatus || 'UNKNOWN';
+        setAdminProtection('adminEdgeDot','adminEdgeValue',d ? 'ok':'bad',d ? 'Armed':'Unavailable');
+        setAdminProtection('adminCloudDot','adminCloudValue',online && health !== 'OFFLINE' ? 'ok':'warn',online && health !== 'OFFLINE' ? 'Live':'Unavailable');
+        setAdminProtection('adminRemoteDot','adminRemoteValue',d ? 'ok':'bad',d ? 'Enabled':'Unavailable');
+        document.getElementById('adminProtectionBadge').textContent = online ? 'EDGE + CLOUD' : d ? 'EDGE POLICY' : 'NO DEVICE';
+
+        renderAdminEvent();
+    }
+
+
+    function renderAdminClosedLoop() {
+        renderAdminDeviceHealthIndex();
+        renderAdminFeedbackLoop();
+    }
+
+    function renderAdminDeviceHealthIndex() {
+        const insight = adminState.deviceInsight;
+        const ring = document.getElementById('adminHealthIndexRing');
+        if (!ring) return;
+
+        const score = Number(insight?.score);
+        const hasScore = Number.isFinite(score);
+        ring.style.setProperty('--trust', hasScore ? score : 0);
+        document.getElementById('adminHealthIndexScore').textContent = hasScore ? `${Math.round(score)}%` : '--';
+        document.getElementById('adminHealthIndexBadge').textContent = insight?.healthStatus || (adminState.devices.length ? 'CHECK' : 'NO DEVICE');
+        document.getElementById('adminHealthIndexLabel').textContent = insight?.label || '正在评估';
+
+        const recommendations = Array.isArray(insight?.recommendations) ? insight.recommendations : [];
+        document.getElementById('adminHealthIndexNote').textContent = recommendations[0] || '暂无设备健康建议。';
+
+        const c = insight?.components || {};
+        setAdminHealthComponent('adminHealthNetworkBar','adminHealthNetworkValue',c.network);
+        setAdminHealthComponent('adminHealthSensorBar','adminHealthSensorValue',c.sensor);
+        setAdminHealthComponent('adminHealthFreshnessBar','adminHealthFreshnessValue',c.freshness);
+    }
+
+    function setAdminHealthComponent(barId,valueId,value) {
+        const n = Number(value);
+        const safe = Number.isFinite(n) ? Math.max(0,Math.min(100,n)) : 0;
+        document.getElementById(barId).style.width = `${safe}%`;
+        document.getElementById(valueId).textContent = Number.isFinite(n) ? `${Math.round(n)}%` : '--';
+    }
+
+    function renderAdminFeedbackLoop() {
+        const summary = adminState.feedbackSummary;
+        const rate = Number(summary?.feedbackRate);
+        document.getElementById('feedbackRateValue').textContent = Number.isFinite(rate) ? `${rate.toFixed(1)}%` : '--';
+        document.getElementById('feedbackRateBadge').textContent = summary?.feedbackCount ? `${summary.feedbackCount} FEEDBACK` : 'NO FEEDBACK';
+
+        const distribution = summary?.distribution || {};
+        const items = [
+            ['REAL_SMOKE','真实烟雾'],
+            ['COOKING','烹饪'],
+            ['SMOKING','香烟'],
+            ['STEAM','蒸汽'],
+            ['FALSE_ALARM','未发现异常'],
+            ['UNKNOWN','无法确认']
+        ];
+
+        document.getElementById('feedbackDistribution').innerHTML = items.map(([key,label]) => `
+            <div><span>${label}</span><b>${Number(distribution[key] || 0)}</b></div>
+        `).join('');
+
+        const count = Number(summary?.feedbackCount || 0);
+        const closed = Number(summary?.closedAlarmCount || 0);
+        document.getElementById('feedbackAdminNote').textContent = count
+            ? `已收到 ${count} 条事件反馈，共有 ${closed} 个已闭环烟雾事件。已记录居民对安全事件的实际情况反馈。`
+            : `当前共有 ${closed} 个已闭环烟雾事件，尚未收到居民事后反馈。`;
+    }
+
+    function setAdminProtection(dotId,valueId,cls,value){
+        document.getElementById(dotId).className = `protect-dot ${cls}`;
+        document.getElementById(valueId).textContent = value;
+    }
+
+    function renderAdminEvent(){
+        const root = document.getElementById('adminEventTimeline');
+        const badge = document.getElementById('adminEventBadge');
+        if (!root || !badge) return;
+        const event = adminState.latestAlarm;
+        if (!event){
+            badge.textContent='CLEAR';
+            root.className='event-empty';
+            root.textContent='当前没有可复盘的烟雾安全事件。';
+            return;
+        }
+        const active = !event.recoverTime;
+        badge.textContent = active ? 'ACTIVE' : 'CLOSED';
+        const lines=[
+            {time:event.alarmTime,title:'持续异常被确认为烟雾事件',desc:event.reason || '检测到持续烟雾异常',cls:'alert'},
+            event.ackTime ? {time:event.ackTime,title:'管理员/居民已确认',desc:'人工响应已记录',cls:'ack'} : null,
+            event.recoverTime ? {time:event.recoverTime,title:'环境恢复正常',desc:'安全事件完成闭环',cls:''}:null
+        ].filter(Boolean);
+        root.className='';
+        root.innerHTML=`<div class="event-status ${active?'active':''}">${active?'● 事件处理中':'✓ 事件已闭环'}</div><div class="event-timeline">${lines.map(x=>`<div class="event-line ${x.cls}"><span class="time">${escapeHtml(x.time||'--')}</span><b>${escapeHtml(x.title)}</b><p>${escapeHtml(x.desc)}</p></div>`).join('')}</div>`;
+    }
+
+    function openDeviceEdit(deviceId) {
+        const d = adminState.devices.find(x => Number(x.deviceId) === Number(deviceId));
+        if (!d) return;
+
+        document.getElementById("deviceFormError").innerText = "";
+        document.getElementById("editDeviceId").value = d.deviceId;
+        document.getElementById("deviceIdDisplay").value = d.deviceId;
+
+        populateResidentSelect(d.userId);
+
+        document.getElementById("deviceBuilding").value = d.building ?? "";
+        document.getElementById("deviceFloor").value = d.floor ?? "";
+        document.getElementById("deviceRoom").value = d.room ?? "";
+
+        residentBindingChanged();
+        document.getElementById("deviceDialog").showModal();
+    }
+
+    function populateResidentSelect(selectedId = null) {
+        const select = document.getElementById("deviceResident");
+        const residents = adminState.users.filter(u => u.role === "resident");
+
+        select.innerHTML = '<option value="">不绑定居民</option>' + residents.map(u => {
+            const room = u.building != null && u.floor != null && u.room != null
+                ? `${u.building}栋${u.floor}层${u.room}室`
+                : "房间未配置";
+            return `<option value="${Number(u.id)}">${escapeHtml(u.username)} · ${escapeHtml(room)}</option>`;
+        }).join("");
+
+        select.value = selectedId == null ? "" : String(selectedId);
+    }
+
+    function residentBindingChanged() {
+        const select = document.getElementById("deviceResident");
+        const userId = select.value;
+
+        const building = document.getElementById("deviceBuilding");
+        const floor = document.getElementById("deviceFloor");
+        const room = document.getElementById("deviceRoom");
+
+        if (userId) {
+            const resident = adminState.users.find(u => Number(u.id) === Number(userId));
+            if (resident) {
+                building.value = resident.building ?? "";
+                floor.value = resident.floor ?? "";
+                room.value = resident.room ?? "";
+            }
+
+            building.disabled = true;
+            floor.disabled = true;
+            room.disabled = true;
+        } else {
+            building.disabled = false;
+            floor.disabled = false;
+            room.disabled = false;
+        }
+    }
+
+    async function submitDevice(event) {
+        event.preventDefault();
+
+        const id = Number(document.getElementById("editDeviceId").value);
+        const residentValue = document.getElementById("deviceResident").value;
+
+        const payload = {
+            userId: residentValue ? Number(residentValue) : null,
+            building: Number(document.getElementById("deviceBuilding").value),
+            floor: Number(document.getElementById("deviceFloor").value),
+            room: Number(document.getElementById("deviceRoom").value)
+        };
+
+        try {
+            await api(`/api/admin/devices/${id}`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            });
+
+            closeDialog("deviceDialog");
+            showToast("设备资料已更新");
+            await Promise.all([loadDevices(), loadOverview()]);
+        } catch (e) {
+            document.getElementById("deviceFormError").innerText = e.message;
+        }
+    }
+
+    async function sendDeviceCommand(deviceId, target, state) {
+        const targetName = target === "BEEP" ? "蜂鸣器" : "LED";
+        const stateName = state === "ON" ? "开启" : "关闭";
+
+        try {
+            const result = await api(`/api/admin/devices/${deviceId}/command`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({target, state})
+            });
+
+            showToast(result?.message || "设备命令下发成功");
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    /* =========================
+       用户管理
+       ========================= */
+    async function loadUsers() {
+        try {
+            const keyword = document.getElementById("userKeyword").value.trim();
+            const role = document.getElementById("userRoleFilter").value;
+
+            const params = new URLSearchParams();
+            if (keyword) params.set("keyword", keyword);
+            if (role && role !== "all") params.set("role", role);
+
+            const query = params.toString();
+            const list = await api(`/api/admin/users${query ? "?" + query : ""}`);
+
+            adminState.users = Array.isArray(list) ? list : [];
+            renderUsers();
+            refreshDeviceFilterOptions();
+        } catch (e) {
+            console.error("加载用户失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    function clearUserFilter() {
+        document.getElementById("userKeyword").value = "";
+        document.getElementById("userRoleFilter").value = "all";
+        loadUsers();
+    }
+
+    function renderUsers() {
+        const body = document.getElementById("userTable");
+
+        if (!adminState.users.length) {
+            body.innerHTML = '<tr><td colspan="6" class="empty">暂无符合条件的用户</td></tr>';
+            return;
+        }
+
+        body.innerHTML = adminState.users.map(u => {
+            const role = u.role === "admin"
+                ? '<span class="badge badge-blue">管理员</span>'
+                : '<span class="badge badge-green">居民</span>';
+
+            const place = u.role === "admin"
+                ? (u.jobNum ? `工号 ${u.jobNum}` : "管理员")
+                : (u.building != null && u.floor != null && u.room != null
+                    ? `${u.building}栋 ${u.floor}层 ${u.room}室`
+                    : "--");
+
+            const isSelf = adminState.currentUser && Number(adminState.currentUser.id) === Number(u.id);
+
+            return `
+                <tr>
+                    <td>${escapeHtml(u.id)}</td>
+                    <td>${escapeHtml(u.username)} ${isSelf ? '<span class="badge badge-yellow">当前账号</span>' : ''}</td>
+                    <td>${role}</td>
+                    <td>${escapeHtml(place)}</td>
+                    <td>${escapeHtml(u.phone)}</td>
+                    <td>
+                        <div class="action-group">
+                            <button class="button small" onclick="openEditUser(${Number(u.id)})">编辑</button>
+                            <button class="button small" onclick="openPasswordReset(${Number(u.id)})">重置密码</button>
+                            <button class="button small" ${isSelf ? "disabled" : ""}
+                                    onclick="deleteUser(${Number(u.id)})">删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function openCreateUser() {
+        document.getElementById("userDialogTitle").innerText = "新增用户";
+        document.getElementById("editUserId").value = "";
+        document.getElementById("userUsername").value = "";
+        document.getElementById("userRole").value = "resident";
+        document.getElementById("userPassword").value = "";
+        document.getElementById("userPhone").value = "";
+        document.getElementById("userBuilding").value = "";
+        document.getElementById("userFloor").value = "";
+        document.getElementById("userRoom").value = "";
+        document.getElementById("userJobNum").value = "";
+        document.getElementById("userFormError").innerText = "";
+        document.getElementById("newPasswordGroup").style.display = "block";
+
+        refreshUserRoleFields();
+        document.getElementById("userDialog").showModal();
+        document.getElementById("userUsername").focus();
+    }
+
+    function openEditUser(id) {
+        const u = adminState.users.find(x => Number(x.id) === Number(id));
+        if (!u) return;
+
+        document.getElementById("userDialogTitle").innerText = "编辑用户";
+        document.getElementById("editUserId").value = u.id;
+        document.getElementById("userUsername").value = u.username ?? "";
+        document.getElementById("userRole").value = u.role ?? "resident";
+        document.getElementById("userPhone").value = u.phone ?? "";
+        document.getElementById("userBuilding").value = u.building ?? "";
+        document.getElementById("userFloor").value = u.floor ?? "";
+        document.getElementById("userRoom").value = u.room ?? "";
+        document.getElementById("userJobNum").value = u.jobNum ?? "";
+        document.getElementById("userPassword").value = "";
+        document.getElementById("userFormError").innerText = "";
+        document.getElementById("newPasswordGroup").style.display = "none";
+
+        refreshUserRoleFields();
+        document.getElementById("userDialog").showModal();
+    }
+
+    function refreshUserRoleFields() {
+        const role = document.getElementById("userRole").value;
+        document.getElementById("residentFields").style.display = role === "resident" ? "block" : "none";
+        document.getElementById("adminFields").style.display = role === "admin" ? "block" : "none";
+    }
+
+    async function submitUser(event) {
+        event.preventDefault();
+
+        const idText = document.getElementById("editUserId").value;
+        const editing = Boolean(idText);
+        const role = document.getElementById("userRole").value;
+
+        const payload = {
+            username: document.getElementById("userUsername").value.trim(),
+            role,
+            phone: document.getElementById("userPhone").value.trim(),
+            building: Number(document.getElementById("userBuilding").value),
+            floor: Number(document.getElementById("userFloor").value),
+            room: Number(document.getElementById("userRoom").value),
+            jobNum: document.getElementById("userJobNum").value.trim()
+        };
+
+        if (!editing) {
+            payload.password = document.getElementById("userPassword").value;
+        }
+
+        try {
+            await api(editing ? `/api/admin/users/${idText}` : "/api/admin/users", {
+                method: editing ? "PUT" : "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            });
+
+            closeDialog("userDialog");
+            showToast(editing ? "用户资料已更新" : "用户创建成功");
+            await Promise.all([loadUsers(), loadDevices(), loadOverview()]);
+        } catch (e) {
+            document.getElementById("userFormError").innerText = e.message;
+        }
+    }
+
+    function openPasswordReset(id) {
+        const u = adminState.users.find(x => Number(x.id) === Number(id));
+        if (!u) return;
+
+        document.getElementById("passwordUserId").value = u.id;
+        document.getElementById("passwordUsername").value = u.username ?? "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("newPasswordAgain").value = "";
+        document.getElementById("passwordFormError").innerText = "";
+        document.getElementById("passwordDialog").showModal();
+        document.getElementById("newPassword").focus();
+    }
+
+    async function submitPasswordReset(event) {
+        event.preventDefault();
+
+        const id = document.getElementById("passwordUserId").value;
+        const password = document.getElementById("newPassword").value;
+        const again = document.getElementById("newPasswordAgain").value;
+
+        if (password !== again) {
+            document.getElementById("passwordFormError").innerText = "两次输入的新密码不一致";
+            return;
+        }
+
+        try {
+            await api(`/api/admin/users/${id}/password`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({newPassword: password})
+            });
+
+            closeDialog("passwordDialog");
+            showToast("密码已重置");
+        } catch (e) {
+            document.getElementById("passwordFormError").innerText = e.message;
+        }
+    }
+
+    async function deleteUser(id) {
+        const u = adminState.users.find(x => Number(x.id) === Number(id));
+        if (!u) return;
+
+        if (!await v5Confirm(
+            `删除用户 ${u.username}？`,
+            "相关设备会自动解除绑定，但监测和告警历史不会删除。",
+            "确认删除",
+            "danger"
+        )) {
+            return;
+        }
+
+        try {
+            const result = await api(`/api/admin/users/${id}`, {
+                method: "DELETE"
+            });
+
+            showToast(result?.message || "用户已删除");
+            await Promise.all([loadUsers(), loadDevices(), loadOverview()]);
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    /* =========================
+       告警管理
+       ========================= */
+    async function loadAlarms() {
+        try {
+            const status = document.getElementById("alarmStatusFilter").value;
+            const ack = document.getElementById("alarmAckFilter").value;
+            const deviceId = document.getElementById("alarmDeviceFilter").value;
+            const keyword = document.getElementById("alarmKeyword").value.trim();
+
+            const params = new URLSearchParams();
+            if (status && status !== "all") params.set("status", status);
+            if (ack !== "") params.set("acknowledged", ack);
+            if (deviceId) params.set("deviceId", deviceId);
+            if (keyword) params.set("keyword", keyword);
+            params.set("limit", "100");
+
+            const list = await api(`/api/admin/alarms?${params.toString()}`);
+            adminState.alarms = Array.isArray(list) ? list : [];
+            renderAlarms();
+        } catch (e) {
+            console.error("加载告警失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    function clearAlarmFilter() {
+        document.getElementById("alarmStatusFilter").value = "all";
+        document.getElementById("alarmAckFilter").value = "";
+        document.getElementById("alarmDeviceFilter").value = "";
+        document.getElementById("alarmKeyword").value = "";
+        loadAlarms();
+    }
+
+    function showActiveAlarms() {
+        switchTab("alarms");
+        document.getElementById("alarmStatusFilter").value = "active";
+        document.getElementById("alarmAckFilter").value = "";
+        loadAlarms();
+    }
+
+    function renderAlarms() {
+        const body = document.getElementById("alarmTable");
+
+        if (!adminState.alarms.length) {
+            body.innerHTML = '<tr><td colspan="9" class="empty">暂无符合条件的告警</td></tr>';
+            return;
+        }
+
+        body.innerHTML = adminState.alarms.map(a => {
+            const ack = Number(a.acknowledged) === 1
+                ? `<span class="badge badge-green">已确认</span><br><small>${escapeHtml(a.ackTime || "")}</small>`
+                : '<span class="badge badge-red">待确认</span>';
+
+            const recovered = a.recoverTime
+                ? `<span class="badge badge-green">已恢复</span><br><small>${escapeHtml(a.recoverTime)}</small>`
+                : '<span class="badge badge-red">活动中</span>';
+
+            const level = a.alarmLevel === "ALARM"
+                ? '<span class="badge badge-red">ALARM</span>'
+                : `<span class="badge badge-yellow">${escapeHtml(a.alarmLevel)}</span>`;
+
+            const action = Number(a.acknowledged) === 0
+                ? `<button class="button small" onclick="ackAlarm(${Number(a.id)})">确认告警</button>`
+                : '<span class="tip">已处理</span>';
+
+            return `
+                <tr>
+                    <td>${escapeHtml(a.id)}</td>
+                    <td>${escapeHtml(a.deviceId)}</td>
+                    <td>${escapeHtml(a.location)}</td>
+                    <td>${escapeHtml(a.alarmTime)}</td>
+                    <td>${level}</td>
+                    <td>${ack}</td>
+                    <td>${recovered}</td>
+                    <td class="reason-cell">${escapeHtml(a.reason)}</td>
+                    <td>${action}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    async function ackAlarm(id) {
+        if (!await v5Confirm(
+            `确认处理告警 ${id}？`,
+            "确认后会记录人工确认时间，告警仍会保持活动状态直到环境恢复。",
+            "确认处理",
+            "primary"
+        )) {
+            return;
+        }
+
+        try {
+            const result = await api(`/api/alarm/${id}/handle`, {
+                method: "POST"
+            });
+
+            showToast(result?.message || "告警已确认");
+            await Promise.all([loadAlarms(), loadOverview()]);
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    /* =========================
+       监测记录
+       ========================= */
+    async function loadRecords() {
+        try {
+            const deviceId = document.getElementById("recordDeviceFilter").value;
+            const cloudState = document.getElementById("recordStateFilter").value;
+            const limit = document.getElementById("recordLimit").value;
+
+            const params = new URLSearchParams();
+            if (deviceId) params.set("deviceId", deviceId);
+            if (cloudState && cloudState !== "all") params.set("cloudState", cloudState);
+            params.set("limit", limit || "50");
+
+            const list = await api(`/api/admin/records?${params.toString()}`);
+            adminState.records = Array.isArray(list) ? list : [];
+            renderRecords();
+        } catch (e) {
+            console.error("加载监测记录失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    function cloudStateBadge(value) {
+        switch (value) {
+            case "NORMAL": return '<span class="badge badge-green">NORMAL</span>';
+            case "WARNING": return '<span class="badge badge-yellow">WARNING</span>';
+            case "ALARM": return '<span class="badge badge-red">ALARM</span>';
+            default: return `<span class="badge badge-gray">${escapeHtml(value)}</span>`;
+        }
+    }
+
+    function renderRecords() {
+        const body = document.getElementById("recordTable");
+
+        if (!adminState.records.length) {
+            body.innerHTML = '<tr><td colspan="9" class="empty">暂无符合条件的监测记录</td></tr>';
+            return;
+        }
+
+        body.innerHTML = adminState.records.map(r => `
+            <tr>
+                <td>${escapeHtml(r.id)}</td>
+                <td>${escapeHtml(r.deviceId)}</td>
+                <td>${escapeHtml(r.collectTime)}</td>
+                <td>${formatNumber(r.smokeConcentration)} ppm</td>
+                <td>${escapeHtml(r.edgeState)}</td>
+                <td>${formatNumber(r.smokeRatio, 2)}</td>
+                <td>${cloudStateBadge(r.cloudState)}</td>
+                <td>${formatNumber(r.riskScore, 2)}</td>
+                <td class="reason-cell">${escapeHtml(r.decisionReason)}</td>
+            </tr>
+        `).join("");
+    }
+
+    /* =========================
+       设备下拉框同步
+       ========================= */
+    function refreshDeviceFilterOptions() {
+        const targets = [
+            document.getElementById("alarmDeviceFilter"),
+            document.getElementById("recordDeviceFilter")
+        ];
+
+        targets.forEach(select => {
+            if (!select) return;
+
+            const old = select.value;
+            select.innerHTML = '<option value="">全部设备</option>' + adminState.devices.map(d => {
+                const location = d.building != null && d.floor != null && d.room != null
+                    ? `${d.building}栋${d.floor}层${d.room}室`
+                    : "位置未配置";
+                return `<option value="${Number(d.deviceId)}">设备${escapeHtml(d.deviceId)} · ${escapeHtml(location)}</option>`;
+            }).join("");
+
+            if ([...select.options].some(o => o.value === old)) {
+                select.value = old;
+            }
+        });
+    }
+
+    /* =========================
+       启动
+       ========================= */
+    async function startAdminPage() {
+        const user = await ensureAdmin();
+        if (!user) return;
+
+        // 先加载用户，再加载设备，确保设备表可以直接显示绑定居民姓名。
+        await loadUsers();
+
+        await Promise.all([
+            loadDevices(),
+            loadOverview()
+        ]);
+
+        // 总览每5秒更新；管理表格按用户操作刷新，避免弹窗编辑时被自动刷新打断。
+        setInterval(loadOverview, 5000);
+    }
+
+    startAdminPage();
+</script>
+<script src="/js/v5-motion.js"></script>
+</body>
+</html>

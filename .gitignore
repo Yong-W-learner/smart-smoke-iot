@@ -1,0 +1,60 @@
+# Maven / build output
+target/
+*.jar
+*.war
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse / STS
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# VS Code
+.vscode/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+# Logs / temporary files
+*.log
+logs/
+tmp/
+temp/
+.DS_Store
+Thumbs.db
+
+# Local / production secrets
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-prod.yml
+application-prod.yaml
+application-secret.yml
+application-secret.yaml
+secrets.yml
+secrets.yaml
+*.key
+*.pem
+*.p12
+*.jks
+
+# Local database exports/backups
+*.sql.gz
+*.dump
+*.bak
