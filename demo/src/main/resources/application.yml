@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/smoke_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:forest-schema.sql
+      encoding: UTF-8
+      continue-on-error: false
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+
+yolo:
+  service:
+    url: ${YOLO_SERVICE_URL:http://127.0.0.1:8001/detect}
+
+forest:
+  llm:
+    # OpenAI-compatible chat-completions endpoint. Leave blank to use the
+    # deterministic rule summary so a missing cloud service never blocks a patrol.
+    api-url: ${FOREST_LLM_API_URL:}
+    api-key: ${FOREST_LLM_API_KEY:}
+    model: ${FOREST_LLM_MODEL:gpt-4o-mini}
+
+huawei:
+  iot:
+    ak: ${HUAWEI_IOT_AK:}
+    sk: ${HUAWEI_IOT_SK:}
+    regionId: ${HUAWEI_IOT_REGION_ID:cn-north-4}
+    endpoint: ${HUAWEI_IOT_ENDPOINT:}
+    deviceId: ${HUAWEI_IOT_DEVICE_ID:}
+    projectId: ${HUAWEI_IOT_PROJECT_ID:}
+
+server:
+  port: ${SERVER_PORT:8080}
+  address: 0.0.0.0
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
