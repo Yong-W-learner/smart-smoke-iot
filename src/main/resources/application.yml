@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/smoke_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Wy20061225@@
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+
+huawei:
+  iot:
+    # 账号级配置
+    ak: HPUASPVQ7YZTSXJQ05ZO
+    sk: IrLIK5Cpq0g9ewz1EZ7WFcpRMmlwrt7OvKPNw2zq
+    regionId: cn-north-4
+    endpoint: a6b1eb348b.st1.iotda-app.cn-north-4.myhuaweicloud.com
+    projectId: 18912f9f92c14739b42e872ad2241e7b
+
+    # 兼容种子值：仅用于启动时回填 device 表真实设备的 iot_device_id。
+    # 设备ID已逐步迁移到 device 表管理（source_type=REAL 的设备字段）。
+    # 正式环境请删除本项，改为在 device 表维护。
+    deviceId: 6a893eb57f2e6c302f91d942_smoke001
+
+    # 真实硬件在数据库中的规范化设备ID（1栋1层101室 = 1001）。
+    # 设备ID规范化迁移会把旧特殊编号 1 迁移为 1001。
+    localDbDeviceId: 1001
+
+    # 允许远程控制命令使用上述兜底 deviceId 的 legacy REAL 设备（数据库 device_id，逗号分隔）。
+    # 默认仅原单设备迁移（现为规范化ID 1001）的 REAL 设备；其余 REAL 设备必须以 iot_device_id 显式绑定。
+    legacyFallbackDbDeviceIds: "1001"
+
+server:
+  port: 8080
+  address: 0.0.0.0
+
+jwt:
+  secret: ${JWT_SECRET:SmokeSafetySystemJwtSecretKey2026VerySecure123456789}
+  expiration: 86400000
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true

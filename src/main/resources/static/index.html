@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>森林巡护员 · 移动端</title>
+    <link rel="stylesheet" href="/css/v5.css">
+    <style>
+        /* ==================== 森林巡护员移动端专用样式 ==================== */
+        body {
+            background: #0b1220;
+        }
+
+        .patrol-shell {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 18px 16px 40px;
+        }
+
+        /* 片区卡片 */
+        .patrol-zone {
+            position: relative;
+            padding: 20px 20px 16px;
+            border-radius: 18px;
+            background:
+                radial-gradient(120% 140% at 100% 0%, rgba(39, 167, 255, .16), transparent 55%),
+                linear-gradient(160deg, rgba(24, 34, 52, .9), rgba(14, 21, 36, .92));
+            border: 1px solid rgba(132, 194, 255, .14);
+            overflow: hidden;
+        }
+        .patrol-zone-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+        .patrol-zone-name { font-size: 22px; font-weight: 700; margin: 6px 0 8px; color: #eef4ff; }
+        .patrol-zone-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .patrol-zone-desc { color: #7f8ca0; font-size: 12.5px; line-height: 1.6; margin-top: 8px; }
+        .patrol-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 10px; margin-top: 18px;
+        }
+        .patrol-stat {
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .06);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .patrol-stat b { display: block; font-size: 22px; color: #eef4ff; }
+        .patrol-stat b.stat-red { color: #ff6f69; }
+        .patrol-stat span { display: block; font-size: 12px; color: #7f8ca0; margin-top: 4px; }
+
+        /* 气象卡片 */
+        .weather-card { margin-top: 14px; }
+        .weather-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+        .weather-cell { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 10px 6px; text-align: center; }
+        .weather-cell b { display: block; font-size: 16px; color: #e6f0ff; }
+        .weather-cell span { display: block; font-size: 11.5px; color: #7f8ca0; margin-top: 3px; }
+
+        /* 事件列表 */
+        .event-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+        .event-card {
+            background: linear-gradient(160deg, rgba(30, 42, 62, .85), rgba(16, 24, 40, .9));
+            border: 1px solid rgba(132, 194, 255, .12);
+            border-left: 3px solid #5aa7ff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: transform .12s ease;
+        }
+        .event-card:active { transform: scale(.985); }
+        .event-card.lv-red { border-left-color: #ff625f; }
+        .event-card.lv-orange { border-left-color: #ff9e4c; }
+        .event-card.lv-yellow { border-left-color: #ffd166; }
+        .event-card.lv-low { border-left-color: #56c68f; }
+        .event-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .event-node { font-weight: 600; color: #eef4ff; font-size: 14px; }
+        .event-time { color: #7f8ca0; font-size: 11.5px; margin-top: 5px; }
+        .event-reason { color: #aab6c8; font-size: 12.5px; line-height: 1.55; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .event-foot { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+        /* 节点列表 */
+        .node-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+        .node-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px; padding: 11px 14px;
+        }
+        .node-row b { color: #e6f0ff; font-size: 13.5px; display: block; }
+        .node-row span { color: #7f8ca0; font-size: 11.5px; }
+
+        /* 事件详情弹窗 */
+        .patrol-dialog {
+            width: min(92vw, 480px);
+            border: none; border-radius: 16px;
+            background: #111a2b;
+            color: #e8f0ff;
+            padding: 20px;
+            box-shadow: 0 24px 60px rgba(0,0,0,.5);
+        }
+        .patrol-dialog::backdrop { background: rgba(5, 10, 18, .62); backdrop-filter: blur(2px); }
+        .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .dialog-title { font-size: 17px; font-weight: 700; }
+        .dialog-meta { color: #7f8ca0; font-size: 12px; margin: 4px 0 10px; }
+        .dialog-close { background: rgba(255,255,255,.06); border: none; color: #c6d4e8; border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+        .fd-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 12px 0; }
+        .fd-cell { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 9px; }
+        .fd-cell span { color: #7f8ca0; font-size: 11px; display: block; }
+        .fd-cell b { font-size: 14px; color: #e6f0ff; }
+
+        .fb-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .fb-btn {
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+            color: #dbe6f5; border-radius: 10px; padding: 11px 8px; cursor: pointer; font-size: 13px;
+        }
+        .fb-btn.fire { border-color: rgba(255, 98, 95, .5); color: #ff9d97; }
+        .fb-btn.none { border-color: rgba(86, 198, 143, .5); color: #7ce3ae; }
+        .fb-btn:hover { filter: brightness(1.12); }
+        .fb-note { width: 100%; box-sizing: border-box; margin-top: 10px; background: #0d1626; border: 1px solid rgba(255,255,255,.12); color: #e8f0ff; border-radius: 10px; padding: 10px; font-size: 13px; }
+        .fb-state { color: #7f8ca0; font-size: 12px; margin-top: 8px; }
+        .dialog-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+        .section-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 20px 2px 8px; }
+        .section-head h3 { font-size: 16px; margin: 0; }
+        .tip { color: #7f8ca0; font-size: 11.5px; margin-top: 3px; }
+        .empty { color: #5f6b7c; text-align: center; padding: 26px 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="noise"></div>
+<div id="staleBar" class="stale-bar" style="display:none">⚠ 网络波动，页面数据可能已过期，正在自动重试…</div>
+
+<div class="patrol-shell">
+    <header class="topbar glass reveal">
+        <div class="brand-mini">
+            <div class="glyph">F</div>
+            <span>Forest Guard</span>
+        </div>
+        <div class="top-actions">
+            <span id="zonePill" class="pill">--</span>
+            <button class="ghost-btn" onclick="SmokeAuth.logout()">退出登录</button>
+            <div id="userAvatar" class="avatar">P</div>
+        </div>
+    </header>
+
+    <!-- 我的巡护片区 -->
+    <section class="patrol-zone glass reveal" data-delay="60">
+        <div class="patrol-zone-head">
+            <div>
+                <div class="small-caps">MY PATROL ZONE · 我的巡护片区</div>
+                <div class="patrol-zone-name" id="zoneName">--</div>
+                <div class="patrol-zone-meta">
+                    <span class="pill" id="zoneCode">--</span>
+                    <span id="zoneRiskBadge" class="badge badge-green">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="patrol-zone-desc" id="zoneDesc">正在获取巡护片区信息…</div>
+        <div class="patrol-stats">
+            <div class="patrol-stat"><b id="statNodes">--</b><span>监测节点</span></div>
+            <div class="patrol-stat"><b id="statOnline">--</b><span>在线节点</span></div>
+            <div class="patrol-stat"><b id="statEvents" class="stat-red">--</b><span>活动火险</span></div>
+        </div>
+    </section>
+
+    <!-- 火险气象 -->
+    <section class="weather-card glass panel reveal" data-delay="100">
+        <div class="section-head" style="margin:0 2px 0">
+            <div>
+                <h3>火险气象</h3>
+                <div class="tip">透明规则评分 · 温度/湿度/土壤湿度加权</div>
+            </div>
+            <span id="weatherBadge" class="badge badge-yellow">--</span>
+        </div>
+        <div class="weather-grid">
+            <div class="weather-cell"><b id="wTemp">--</b><span>气温 ℃</span></div>
+            <div class="weather-cell"><b id="wHumidity">--</b><span>湿度 %</span></div>
+            <div class="weather-cell"><b id="wSoil">--</b><span>土壤湿度 %</span></div>
+            <div class="weather-cell"><b id="wWind">--</b><span>风速 m/s</span></div>
+        </div>
+    </section>
+
+    <!-- 活动火险事件 -->
+    <section class="events-section reveal" data-delay="140">
+        <div class="section-head">
+            <div>
+                <h3>活动火险事件</h3>
+                <div class="tip">仅显示我的巡护片区内尚未恢复的事件</div>
+            </div>
+            <button class="button small" onclick="loadEvents()">刷新</button>
+        </div>
+        <div id="eventList" class="event-list"></div>
+    </section>
+
+    <!-- 我的监测节点 -->
+    <section class="nodes-section reveal" data-delay="180">
+        <div class="section-head">
+            <div>
+                <h3>我的监测节点</h3>
+                <div class="tip">片区内的森林火险监测节点（REAL=真实硬件 / DEMO=演示）</div>
+            </div>
+        </div>
+        <div id="nodeList" class="node-list"></div>
+    </section>
+</div>
+
+<!-- 事件详情弹窗 -->
+<dialog id="eventDialog" class="patrol-dialog">
+    <div class="dialog-head">
+        <div>
+            <div class="dialog-title" id="fdTitle">火险事件详情</div>
+            <div class="dialog-meta" id="fdMeta">--</div>
+        </div>
+        <button class="dialog-close" onclick="closeEventDialog()">关闭</button>
+    </div>
+    <div id="fdReason" class="event-reason" style="-webkit-line-clamp:unset;margin:8px 0 12px">--</div>
+    <div class="fd-grid">
+        <div class="fd-cell"><span>优先级总分</span><b id="fdPriority">--</b></div>
+        <div class="fd-cell"><span>火险可信度</span><b id="fdConfidence">--</b></div>
+        <div class="fd-cell"><span>气象评分</span><b id="fdWeather">--</b></div>
+        <div class="fd-cell"><span>无人机复核</span><b id="fdDrone">--</b></div>
+    </div>
+    <div id="fdFeedbackWrap">
+        <div class="dialog-title" style="font-size:14px;margin:6px 0 8px">巡护现场复核</div>
+        <div class="fb-choices">
+            <button class="fb-btn fire" data-fb="FIRE_CONFIRMED" onclick="submitFeedback(this)">确认火情</button>
+            <button class="fb-btn none" data-fb="NO_ABNORMALITY" onclick="submitFeedback(this)">未发现异常</button>
+            <button class="fb-btn" data-fb="SMOKE_UNCERTAIN" onclick="submitFeedback(this)">烟雾存疑</button>
+            <button class="fb-btn" data-fb="OTHER" onclick="submitFeedback(this)">其他情况</button>
+        </div>
+        <input id="fbNote" class="fb-note" placeholder="现场补充说明（选填，≤255字）">
+        <div id="fbState" class="fb-state">请到现场后选择最符合实际的复核结果。</div>
+    </div>
+    <div class="dialog-actions">
+        <button class="button" id="ackButton" onclick="ackEvent()">确认收到告警</button>
+        <button class="button" onclick="closeEventDialog()">返回</button>
+    </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/v5-motion.js"></script>
+<script>
+    const state = {
+        user: null,
+        home: null,
+        events: [],
+        nodes: [],
+        currentEventId: null,
+        currentEvent: null
+    };
+
+    let toastTimer = null;
+
+    function toast(message, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className = `toast ${type} show`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '--')
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+
+    function formatNumber(value, digits = 2) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n.toFixed(digits) : '--';
+    }
+
+    function api(url, options = {}) {
+        return fetch(url, options).then(async response => {
+            if (!response.ok) {
+                let message = `请求失败（HTTP ${response.status}）`;
+                try {
+                    const data = await response.json();
+                    if (data?.message) message = data.message;
+                } catch (e) {}
+                throw new Error(message);
+            }
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
+        });
+    }
+
+    function riskLevel(level) {
+        const map = { RED: 'red', ORANGE: 'orange', YELLOW: 'yellow', LOW: 'low' };
+        return map[String(level || '').toUpperCase()] || 'low';
+    }
+
+    function riskBadge(level) {
+        const lv = String(level || '').toUpperCase();
+        const cls = lv === 'RED' ? 'badge-red'
+            : lv === 'ORANGE' ? 'badge-yellow'
+            : lv === 'YELLOW' ? 'badge-yellow'
+            : 'badge-green';
+        const label = lv === 'RED' ? 'RED 高危'
+            : lv === 'ORANGE' ? 'ORANGE'
+            : lv === 'YELLOW' ? 'YELLOW'
+            : lv ? lv : 'LOW';
+        return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+    }
+
+    function healthBadge(health) {
+        const h = String(health || '').toUpperCase();
+        const cls = h === 'NORMAL' ? 'badge-green'
+            : h === 'STALE' ? 'badge-yellow'
+            : h === 'OFFLINE' ? 'badge-gray'
+            : h === 'SENSOR_FAULT' ? 'badge-purple'
+            : 'badge-gray';
+        const label = ({ NORMAL: '正常', STALE: '数据过期', OFFLINE: '离线', SENSOR_FAULT: '传感器异常' })[h] || health || '--';
+        return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+    }
+
+    function disposalLabel(state) {
+        const map = { NEW: '待处理', ACKNOWLEDGED: '已确认', ON_SITE: '已到场', RESOLVED: '已解决', CLOSED: '已关闭' };
+        return map[String(state || 'NEW').toUpperCase()] || state || '待处理';
+    }
+
+    function droneLabel(confirmed) {
+        return Integer(confirmed) === 1 ? '已确认火点' : '未复核';
+    }
+
+    /* ==================== 初始化 ==================== */
+
+    async function ensurePatrol() {
+        if (!SmokeAuth.requireLogin()) return false;
+        let user = SmokeAuth.getUser();
+        if (!user) {
+            try {
+                user = await api('/api/auth/me');
+                SmokeAuth.saveUser(user);
+            } catch (e) {
+                return false;
+            }
+        }
+        if (user.role === 'admin') {
+            window.location.replace('/admin.html');
+            return false;
+        }
+        // 巡护员 = resident + 分区绑定（zone_id>0）；patrol 角色已回退合并到 resident。
+        if (!(user.role === 'resident' && Number(user.zoneId) > 0)) {
+            // 普通居民（未绑定分区）不开放巡护端，提示后返回登录。
+            toast('该账号不是巡护员，请使用绑定分区的巡护员账号登录', 'error');
+            setTimeout(() => SmokeAuth.logout(), 1200);
+            return false;
+        }
+        state.user = user;
+        document.getElementById('userAvatar').textContent = (user.username || 'P').slice(0, 1).toUpperCase();
+        return true;
+    }
+
+    /* ==================== 数据加载 ==================== */
+
+    function setStale(stale) {
+        document.getElementById('staleBar').style.display = stale ? '' : 'none';
+    }
+
+    async function loadHome() {
+        try {
+            state.home = await api('/api/patrol/home');
+            renderHome();
+            setStale(false);
+        } catch (e) {
+            setStale(true);
+        }
+    }
+
+    function renderHome() {
+        const home = state.home;
+        if (!home) return;
+        const zone = home.zone || {};
+        document.getElementById('zonePill').textContent = zone.zoneName || '--';
+        document.getElementById('zoneName').textContent = zone.zoneName || '--';
+        document.getElementById('zoneCode').textContent = zone.zoneCode || '--';
+
+        const zoneRisk = document.getElementById('zoneRiskBadge');
+        const risk = String(zone.riskLevel || '').toUpperCase();
+        zoneRisk.className = `badge ${risk === 'HIGH' ? 'badge-red' : risk === 'MEDIUM' ? 'badge-yellow' : 'badge-green'}`;
+        zoneRisk.textContent = ({ HIGH: '高火险等级', MEDIUM: '中火险等级', LOW: '低火险等级' })[risk] || zone.riskLevel || '--';
+
+        document.getElementById('zoneDesc').textContent = zone.description || '--';
+
+        const stats = home.nodeStats || {};
+        document.getElementById('statNodes').textContent = stats.total ?? '--';
+        document.getElementById('statOnline').textContent = stats.online ?? '--';
+        document.getElementById('statEvents').textContent = home.activeEventCount ?? '--';
+
+        const w = home.weather || {};
+        const ws = Number(w.fireWeatherScore);
+        const weatherBadge = document.getElementById('weatherBadge');
+        weatherBadge.className = `badge ${ws >= 70 ? 'badge-red' : ws >= 45 ? 'badge-yellow' : 'badge-green'}`;
+        weatherBadge.textContent = Number.isFinite(ws) ? `${Math.round(ws)} 分` : '--';
+        document.getElementById('wTemp').textContent = formatNumber(w.temperature, 1);
+        document.getElementById('wHumidity').textContent = formatNumber(w.humidity, 1);
+        document.getElementById('wSoil').textContent = formatNumber(w.soilMoisture, 1);
+        document.getElementById('wWind').textContent = formatNumber(w.windSpeed, 1);
+    }
+
+    async function loadEvents() {
+        try {
+            state.events = await api('/api/patrol/events');
+            renderEvents();
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+    }
+
+    function renderEvents() {
+        const body = document.getElementById('eventList');
+        if (!state.events.length) {
+            body.innerHTML = '<div class="empty">当前片区暂无活动火险事件</div>';
+            return;
+        }
+        body.innerHTML = state.events.map(e => `
+            <div class="event-card lv-${riskLevel(e.priorityLevel)}" onclick="openEventDetail(${Number(e.id)})">
+                <div class="event-top">
+                    <div class="event-node">${escapeHtml(e.nodeName || e.nodeCode || '未绑定节点')}</div>
+                    ${riskBadge(e.priorityLevel)}
+                </div>
+                <div class="event-time">${escapeHtml(e.alarmTime || '--')} · 优先级 ${e.priorityScore ?? '--'} 分</div>
+                <div class="event-reason">${escapeHtml(e.reason || '检测到烟雾异常')}</div>
+                <div class="event-foot">
+                    <span class="badge badge-gray">处置：${escapeHtml(disposalLabel(e.disposalState))}</span>
+                    <span class="badge badge-gray">无人机：${escapeHtml(droneLabel(e.droneConfirmed))}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function loadNodes() {
+        try {
+            const list = await api('/api/device/list');
+            state.nodes = Array.isArray(list) ? list : [];
+            renderNodes();
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+    }
+
+    function renderNodes() {
+        const body = document.getElementById('nodeList');
+        if (!state.nodes.length) {
+            body.innerHTML = '<div class="empty">当前片区暂无可监测节点</div>';
+            return;
+        }
+        body.innerHTML = state.nodes.map(n => `
+            <div class="node-row">
+                <div>
+                    <b>${escapeHtml(n.nodeName || n.nodeCode || n.deviceId)}</b>
+                    <span>${escapeHtml(n.nodeCode || '--')} · ${escapeHtml((n.sourceType === 'REAL' ? '真实硬件' : n.sourceType === 'DEMO' ? '演示节点' : n.sourceType || '--'))}</span>
+                </div>
+                <div style="text-align:right">
+                    <div>${healthBadge(n.healthStatus)}</div>
+                    <span style="display:block;margin-top:4px;color:${Number(n.status) === 1 ? '#56df94' : '#8b93a0'}">${Number(n.status) === 1 ? '● 在线' : '● 离线'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /* ==================== 事件详情 + 巡护反馈 ==================== */
+
+    async function openEventDetail(id) {
+        try {
+            const result = await api(`/api/alarm/${id}`);
+            state.currentEventId = Number(id);
+            state.currentEvent = result?.alarm || null;
+            renderEventDetail(result?.alarm, result?.feedback);
+            document.getElementById('eventDialog').showModal();
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+    }
+
+    function renderEventDetail(alarm, feedback) {
+        if (!alarm) return;
+        document.getElementById('fdMeta').textContent = `事件 #${alarm.id} · ${escapeHtml(alarm.alarmTime || '--')}`;
+        document.getElementById('fdReason').textContent = alarm.reason || '检测到烟雾异常';
+        document.getElementById('fdPriority').textContent = alarm.priorityScore ?? '--';
+        document.getElementById('fdConfidence').textContent = alarm.fireConfidenceScore != null ? `${alarm.fireConfidenceScore} 分` : '--';
+        document.getElementById('fdWeather').textContent = alarm.fireWeatherScore != null ? `${alarm.fireWeatherScore} 分` : '--';
+        document.getElementById('fdDrone').textContent = Integer(alarm.droneConfirmed) === 1 ? '已确认火点' : '未复核';
+
+        const ackButton = document.getElementById('ackButton');
+        ackButton.style.display = Integer(alarm.acknowledged) === 1 ? 'none' : '';
+
+        const selected = feedback?.feedbackType || null;
+        document.querySelectorAll('#eventDialog .fb-btn').forEach(btn => {
+            btn.style.outline = btn.dataset.fb === selected ? '2px solid #5aa7ff' : 'none';
+        });
+        document.getElementById('fbNote').value = feedback?.feedbackNote || '';
+        document.getElementById('fbState').textContent = selected
+            ? `已记录复核：${feedbackLabel(selected)}` + (feedback?.feedbackNote ? ` · ${escapeHtml(feedback.feedbackNote)}` : '') + '（可重新选择修正）'
+            : '请到现场后选择最符合实际的复核结果。';
+    }
+
+    function feedbackLabel(type) {
+        return ({
+            FIRE_CONFIRMED: '确认火情',
+            NO_ABNORMALITY: '未发现异常',
+            SMOKE_UNCERTAIN: '烟雾存疑',
+            OTHER: '其他情况'
+        })[type] || type || '--';
+    }
+
+    async function submitFeedback(button) {
+        const id = state.currentEventId;
+        if (id == null) return;
+        const type = button.dataset.fb;
+        const note = document.getElementById('fbNote').value.trim();
+        try {
+            const result = await api(`/api/alarm/${id}/feedback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedbackType: type, feedbackNote: note })
+            });
+            toast(result?.message || '巡护复核已记录');
+            renderEventDetail(state.currentEvent, result?.feedback || null);
+            await loadEvents();
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+    }
+
+    async function ackEvent() {
+        const id = state.currentEventId;
+        if (id == null) return;
+        try {
+            const result = await api(`/api/alarm/${id}/handle`, { method: 'POST' });
+            toast(result?.message || '告警已确认');
+            await openEventDetail(id);
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+    }
+
+    function closeEventDialog() {
+        document.getElementById('eventDialog').close();
+    }
+
+    /* ==================== 启动 ==================== */
+
+    function Integer(value) {
+        return Number(value) || 0;
+    }
+
+    async function start() {
+        if (!await ensurePatrol()) return;
+        await Promise.allSettled([loadHome(), loadEvents(), loadNodes()]);
+        setInterval(() => Promise.allSettled([loadHome(), loadEvents(), loadNodes()]), 5000);
+    }
+
+    start();
+</script>
+</body>
+</html>

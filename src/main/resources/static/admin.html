@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>森林公园生态安全指挥台</title>
+    <link rel="stylesheet" href="/css/v5.css">
+    <style>
+        /* ===== 森林公园指挥台专用样式（基于 v5 设计语言扩展） ===== */
+
+        /* 一级导航收敛为 5 项；演示工具 / 系统管理放在侧栏底部次级入口 */
+
+        /* 顶层 7 项核心统计 */
+        .fm-stats { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 18px; }
+        @media (max-width: 1280px) { .fm-stats { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 680px) { .fm-stats { grid-template-columns: repeat(2, 1fr); } }
+
+        .fm-stat { cursor: pointer; border: 1px solid var(--line); border-radius: 18px; padding: 15px 14px; background: linear-gradient(145deg, rgba(18,21,27,.86), rgba(10,12,17,.78)); text-align: left; transition: .28s; position: relative; overflow: hidden; color: #dfe7f2; }
+        .fm-stat:hover { transform: translateY(-3px); border-color: rgba(87,215,255,.18); }
+        .fm-stat .fs-label { display: block; font-size: 11px; color: #77808f; font-weight: 700; letter-spacing: .02em; }
+        .fm-stat .fs-value { display: block; font-size: 30px; font-weight: 790; letter-spacing: -.045em; margin: 9px 0 4px; line-height: 1; }
+        .fm-stat .fs-sub { display: block; font-size: 10px; color: #626a78; }
+        .fm-stat.fs-all .fs-value { color: #65c7ff; }
+        .fm-stat.fs-normal .fs-value { color: #56df94; }
+        .fm-stat.fs-warning .fs-value { color: #ffb657; }
+        .fm-stat.fs-alarm .fs-value { color: #ff6f6b; }
+        .fm-stat.fs-offline .fs-value { color: #a0a7b2; }
+        .fm-stat.fs-sensor .fs-value { color: #be9eff; }
+        .fm-stat.fs-stale .fs-value { color: #ffd466; }
+
+        /* 工作台双栏：左“当前需要处理” ~65%，右“森林公园态势” ~35% */
+        .v51-workbench { display: grid; grid-template-columns: 1.35fr .65fr; gap: 18px; margin-top: 18px; }
+        .v51-workbench > .panel { min-width: 0; }
+        @media (max-width: 1180px) { .v51-workbench { grid-template-columns: 1fr; } }
+
+        .task-panel { display: flex; flex-direction: column; min-width: 0; }
+        .task-queue { display: flex; flex-direction: column; gap: 9px; max-height: 600px; overflow-y: auto; overflow-x: hidden; margin-top: 6px; min-width: 0; width: 100%; max-width: 100%; }
+        .task-empty { color: #6f7784; font-size: 12px; padding: 26px; text-align: center; border: 1px dashed var(--line); border-radius: 14px; }
+
+        .situation-stack { display: flex; flex-direction: column; gap: 16px; }
+
+        /* SVG 公园示意底图 */
+        .fm-wrap { border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: radial-gradient(1200px 600px at 50% -10%, rgba(41,151,255,.05), transparent 60%), linear-gradient(180deg, #0d121a, #0a0d13); }
+        #forestSvg { width: 100%; height: auto; display: block; }
+        .fm-layers { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 11px 16px 0; font-size: 11px; color: #8b93a2; }
+        .fm-layer { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+        .fm-layer input { accent-color: var(--blue); }
+        .fm-layers-hint { padding: 8px 16px 0; font-size: 10px; color: #626a78; line-height: 1.5; }
+        .fm-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; border-top: 1px solid var(--line); }
+        .fm-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #8b93a2; }
+        .fm-legend-item i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+        /* 分区有机轮廓 */
+        .fm-blob { stroke-width: 1.6; }
+        .fm-blob-hi { fill: rgba(255,120,90,.07); stroke: rgba(255,120,90,.30); }
+        .fm-blob-md { fill: rgba(255,182,87,.06); stroke: rgba(255,182,87,.26); }
+        .fm-zone-label { fill: #b7c0cd; font-size: 15px; font-weight: 800; letter-spacing: .06em; }
+        .fm-zone-sub { fill: #68727f; font-size: 10.5px; font-weight: 650; }
+
+        /* 道路 / 水系 / 林冠 */
+        .fm-road { stroke: rgba(255,255,255,.11); stroke-width: 2; stroke-dasharray: 3 7; fill: none; }
+        .fm-ring { stroke: rgba(255,255,255,.07); stroke-width: 1.6; stroke-dasharray: 2 8; fill: none; }
+        .fm-river { stroke: rgba(96,178,255,.20); stroke-width: 22; stroke-linecap: round; fill: none; }
+        .fm-lake { fill: rgba(96,178,255,.16); }
+
+        /* 节点：默认只高亮异常/预警/报警，正常节点由“监测节点”开关显示 */
+        .fm-node { stroke: #0b0f15; stroke-width: 1.4; }
+        .fm-node-ok { fill: #56df94; }
+        .fm-node-warn { fill: #ffb657; }
+        .fm-node-alarm { fill: #ff6f6b; }
+        .fm-node-off { fill: #a0a7b2; }
+        #layerNodes .fm-node-ok { opacity: 0; pointer-events: none; }
+        svg.svg-all-nodes #layerNodes .fm-node-ok { opacity: 1; pointer-events: auto; }
+
+        .fm-hab-core { color: #be9eff; }
+        .fm-hab-high { color: #ffb657; }
+        .fm-hab-md { color: #7fd3ff; }
+
+        .fm-event-ring { fill: rgba(255,90,86,.35); animation: fmPulse 1.6s ease-in-out infinite; }
+        .fm-event-core { stroke: #0b0f15; stroke-width: 1.2; }
+        .fm-lv-red { fill: #ff6f6b; }
+        .fm-lv-orange { fill: #ffb657; }
+        .fm-lv-yellow { fill: #ffd466; }
+        .fm-lv-low { fill: #7fd3ff; }
+        @keyframes fmPulse { 0%, 100% { opacity: .15; } 50% { opacity: .75; } }
+
+        .fm-threat-ring { fill: none; stroke: #ffb657; stroke-width: 1.4; stroke-dasharray: 3 3; animation: fmPulse 1.6s ease-in-out infinite; }
+
+        .fm-drone rect { stroke-width: 1.3; }
+        .fm-drone text { font-family: inherit; font-weight: 800; }
+
+        /* 分区火险气象 */
+        .side-card { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.02); }
+        .side-card h4 { margin: 0 0 12px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: #77808f; }
+        .zw-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+        .zw-row:last-child { border-bottom: 0; }
+        .zw-head { display: flex; justify-content: space-between; align-items: center; }
+        .zw-name { font-size: 13px; font-weight: 720; }
+        .zw-score { font-size: 13px; }
+        .zw-score.sc-hi { color: #ff6f6b; }
+        .zw-score.sc-md { color: #ffb657; }
+        .zw-score.sc-lo { color: #56df94; }
+        .zw-metrics { display: flex; gap: 12px; font-size: 11px; color: #77808f; margin-top: 5px; flex-wrap: wrap; }
+        .zw-metrics b { color: #c6cdd8; font-weight: 700; }
+
+        .forest-empty { color: #77808f; font-size: 13px; padding: 26px; text-align: center; }
+        .detail-loading { color: #77808f; font-size: 13px; padding: 26px; text-align: center; }
+
+        /* 合并页内分段切换（生态资源 / 巡护管理） */
+        .seg-tabs { display: flex; gap: 6px; margin: 4px 0 16px; flex-wrap: wrap; }
+        .seg-tab { border: 1px solid var(--line); background: rgba(255,255,255,.03); color: #8b93a0; border-radius: 999px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; transition: .22s; }
+        .seg-tab:hover { color: #dfe7f2; border-color: var(--line-strong); }
+        .seg-tab.on { background: linear-gradient(135deg, rgba(41,151,255,.18), rgba(87,215,255,.07)); border-color: rgba(87,215,255,.12); color: #dff2ff; }
+
+        /* 事件卡片 */
+        .event-card { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.02); margin-bottom: 12px; transition: .22s; }
+        .event-card:hover { border-color: rgba(87,215,255,.16); background: rgba(255,255,255,.035); }
+        .event-card-left { flex: 0 0 auto; }
+        .prio-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+        .prio-chip.red { background: rgba(255,98,95,.16); color: #ff7a76; }
+        .prio-chip.orange { background: rgba(255,182,87,.14); color: #ffbd68; }
+        .prio-chip.yellow { background: rgba(255,212,102,.13); color: #ffd466; }
+        .prio-chip.low { background: rgba(127,211,255,.12); color: #7fd3ff; }
+        .event-card-main { flex: 1; min-width: 0; }
+        .event-card-title { font-size: 15px; font-weight: 760; }
+        .event-card-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: #77808f; margin: 6px 0; }
+        .event-card-reason { font-size: 12px; color: #9aa3b2; line-height: 1.6; }
+        .event-card-badges { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .event-card-actions { flex: 0 0 auto; display: flex; gap: 6px; }
+
+        /* 事件详情 */
+        .fd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+        .fd-title { font-size: 15px; font-weight: 760; margin: 18px 0 10px; }
+        .fd-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: #77808f; margin-top: 8px; align-items: center; }
+        .fd-reason { font-size: 12px; color: #9aa3b2; line-height: 1.6; background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+        .fd-score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+        @media (max-width: 680px) { .fd-score-grid { grid-template-columns: repeat(2, 1fr); } }
+        .fd-score { border: 1px solid var(--line); border-radius: 13px; padding: 11px 12px; background: rgba(255,255,255,.02); }
+        .fd-score span { display: block; font-size: 11px; color: #77808f; }
+        .fd-score b { display: block; font-size: 19px; font-weight: 780; margin-top: 4px; color: #dfe7f2; }
+        .fd-score-prio b { color: #ffbd68; }
+        .fd-block { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(255,255,255,.02); }
+        .fd-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .fd-toolbar .input { flex: 1; min-width: 160px; }
+        .fd-hint { font-size: 11px; color: #77808f; margin: 6px 0 10px; }
+        .fd-disp-badge { font-size: 12px; color: #9aa3b2; margin-top: 6px; }
+        .fd-mission { border: 1px solid var(--line); border-radius: 13px; padding: 11px 12px; margin-bottom: 9px; background: rgba(255,255,255,.02); }
+        .fd-mission-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+        .fd-mission-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: #77808f; margin: 6px 0; }
+        .fd-mission-note { font-size: 12px; color: #c6cdd8; margin-bottom: 8px; }
+        .fd-mission-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .fd-followup { border: 1px solid var(--line); border-radius: 13px; padding: 11px 12px; margin-bottom: 9px; background: rgba(255,255,255,.02); }
+        .fd-followup-head { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .fd-followup-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: #77808f; margin: 6px 0; }
+        .fd-followup-note { font-size: 12px; color: #c6cdd8; margin-bottom: 8px; }
+        .fd-followup-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .fd-timeline { display: flex; flex-direction: column; gap: 12px; }
+        .fd-tl-item { display: flex; gap: 11px; }
+        .fd-tl-dot { width: 9px; height: 9px; border-radius: 50%; background: #65c7ff; box-shadow: 0 0 10px rgba(101,199,255,.5); margin-top: 5px; flex: 0 0 auto; }
+        .fd-tl-body { flex: 1; min-width: 0; }
+        .fd-tl-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+        .fd-tl-head span { color: #77808f; font-size: 11px; white-space: nowrap; }
+        .fd-tl-desc { font-size: 12px; color: #9aa3b2; margin-top: 2px; line-height: 1.5; }
+        .fd-tl-op { font-size: 11px; color: #77808f; margin-top: 2px; }
+
+        /* 评分依据（可展开） */
+        .score-why { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.02); }
+        .score-why summary { cursor: pointer; padding: 10px 12px; font-size: 12px; font-weight: 700; color: #8fa2b5; letter-spacing: .04em; user-select: none; list-style: none; }
+        .score-why summary::-webkit-details-marker { display: none; }
+        .score-why summary::before { content: "?"; display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: rgba(41,151,255,.15); color: #65c7ff; text-align: center; line-height: 16px; font-size: 11px; margin-right: 8px; }
+        .score-why[open] .fd-reason { border-top: 1px solid var(--line); border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0; background: transparent; padding: 10px 12px; }
+
+        /* 古树 / 栖息地卡片 */
+        .resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+        .tree-card, .hab-card { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.02); transition: .24s; }
+        .tree-card { cursor: pointer; }
+        .tree-card:hover, .hab-card:hover { transform: translateY(-3px); border-color: rgba(87,215,255,.18); background: rgba(255,255,255,.04); }
+        .tree-card-head, .hab-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .tree-code, .hab-code { font-size: 12px; font-weight: 800; color: #65c7ff; letter-spacing: .04em; }
+        .tree-name, .hab-name { font-size: 18px; font-weight: 780; margin: 10px 0 2px; letter-spacing: -.02em; }
+        .tree-species, .hab-species { font-size: 12px; color: #77808f; font-style: italic; }
+        .tree-meta, .hab-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: #77808f; margin-top: 10px; }
+        .tree-desc, .hab-desc { font-size: 12px; color: #9aa3b2; line-height: 1.6; margin-top: 8px; }
+
+        .cell-sub { color: #77808f; font-size: 11px; }
+
+        /* 巡护人员 */
+        .personnel-toolbar { flex-wrap: wrap; gap: 8px; }
+        .personnel-form { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+        .personnel-form .control { width: auto; flex: 0 1 auto; min-width: 130px; }
+    </style>
+</head>
+
+<body class="admin-page">
+<div class="noise"></div>
+<div class="admin-layout-v51">
+    <aside class="admin-sidebar glass reveal visible">
+        <div class="side-brand">
+            <div class="glyph">F</div>
+            <div><strong>生态守卫</strong><span>Forest Shield</span></div>
+        </div>
+
+        <nav class="side-nav">
+            <button class="tab-button active" data-tab="overview"><span class="nav-icon">◫</span><span>总览</span></button>
+            <button class="tab-button" data-tab="events"><span class="nav-icon">△</span><span>火险事件</span></button>
+            <button class="tab-button" data-tab="nodes"><span class="nav-icon">◉</span><span>监测节点</span></button>
+            <button class="tab-button" data-tab="resources"><span class="nav-icon">♧</span><span>生态资源</span></button>
+            <button class="tab-button" data-tab="patrol"><span class="nav-icon">≋</span><span>巡护管理</span></button>
+        </nav>
+
+        <div class="side-bottom">
+            <a class="side-link" href="javascript:void(0)" onclick="switchTab('demo')">演示工具 <span>▶</span></a>
+            <a class="side-link" href="javascript:void(0)" onclick="switchTab('accounts')">系统管理 <span>⚙</span></a>
+            <a class="side-link" href="/technical.html">技术详情 <span>↗</span></a>
+            <div class="side-user">
+                <div class="avatar">A</div>
+                <div class="side-user-copy"><strong id="adminUsername">--</strong><span id="adminMeta">管理员</span></div>
+                <button class="side-logout" title="退出登录" onclick="SmokeAuth.logout()">↗</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="admin-main-v51">
+        <header class="admin-head-v51 reveal visible">
+            <div>
+                <div class="small-caps">FOREST PARK · LIVE</div>
+                <h1 id="adminGreeting">森林公园生态安全指挥台</h1>
+                <p>火险事件 · 监测节点 · 生态资源 · 巡护复核，一个界面实时协同。</p>
+            </div>
+            <div class="head-status">
+                <span class="date-chip" id="liveDateChip">Live</span>
+                <i class="live-dot"></i>
+            </div>
+        </header>
+
+        <!-- ==================== 总览 ==================== -->
+        <section id="panel-overview" class="tab-panel active">
+            <div id="overviewStaleBar" class="overview-stale-bar" style="display:none">数据同步失败 · 当前显示最后一次成功数据（可能已过期）</div>
+
+            <section class="fm-stats reveal" data-delay="60">
+                <button class="fm-stat fs-all" onclick="statGo('nodes')"><span class="fs-label">监测节点</span><b id="statNodeCount" class="fs-value">--</b><span class="fs-sub">全部分区</span></button>
+                <button class="fm-stat fs-normal" onclick="statGo('nodes')"><span class="fs-label">正常节点</span><b id="statNormalCount" class="fs-value">--</b><span class="fs-sub">最新云端判定</span></button>
+                <button class="fm-stat fs-warning" onclick="statGo('events')"><span class="fs-label">烟雾预警</span><b id="statWarningCount" class="fs-value">--</b><span class="fs-sub">云端预警</span></button>
+                <button class="fm-stat fs-alarm" onclick="statGo('events')"><span class="fs-label">活动火情</span><b id="statActiveAlarm" class="fs-value">--</b><span class="fs-sub">环境未恢复</span></button>
+                <button class="fm-stat fs-offline" onclick="statGo('nodes')"><span class="fs-label">设备异常</span><b id="statAbnormalCount" class="fs-value">--</b><span class="fs-sub">离线 / 传感器故障</span></button>
+                <button class="fm-stat fs-sensor" onclick="statGo('resources')"><span class="fs-label">受威胁生态资源</span><b id="statThreatCount" class="fs-value">--</b><span class="fs-sub">事件影响去重</span></button>
+                <button class="fm-stat fs-stale" onclick="statGo('events')"><span class="fs-label">待处置事件</span><b id="statPendingCount" class="fs-value">--</b><span class="fs-sub">待无人机复核</span></button>
+            </section>
+
+            <section class="v51-workbench reveal" data-delay="120">
+                <!-- 左：当前需要处理 -->
+                <article class="panel task-panel">
+                    <div class="panel-headline">
+                        <div>
+                            <div class="small-caps">TO-DO · LIVE</div>
+                            <h3>当前需要处理</h3>
+                            <p class="panel-sub">活动火险事件按综合紧急度排序，直接在此处置。</p>
+                        </div>
+                        <span class="status-badge" id="taskCountBadge">0</span>
+                    </div>
+                    <div id="taskQueue" class="task-queue">
+                        <div class="task-empty">正在同步事件…</div>
+                    </div>
+                </article>
+
+                <!-- 右：森林公园态势 -->
+                <div class="situation-stack">
+                    <article class="panel" style="padding:0;overflow:hidden">
+                        <div class="panel-headline" style="padding:18px 20px 0">
+                            <div>
+                                <div class="small-caps">PARK SITUATION</div>
+                                <h3>森林公园态势</h3>
+                            </div>
+                            <span class="status-badge">分区 · 节点 · 资源 · 事件</span>
+                        </div>
+                        <div class="fm-layers">
+                            <label class="fm-layer"><input type="checkbox" id="layerNodes"> 监测节点（全部）</label>
+                            <label class="fm-layer"><input type="checkbox" id="layerTrees" checked> 生态资源</label>
+                            <label class="fm-layer"><input type="checkbox" id="layerEvents" checked> 活动事件</label>
+                            <label class="fm-layer"><input type="checkbox" id="layerDrones" checked> 无人机</label>
+                        </div>
+                        <div class="fm-layers-hint">默认只高亮异常/预警节点、活动事件与关键生态资源；勾选“监测节点”可查看全部节点。</div>
+                        <div class="fm-wrap" style="margin:10px 18px 0">
+                            <svg id="forestSvg" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet"
+                                 role="img" aria-label="森林公园态势示意图">
+                                <text x="500" y="325" text-anchor="middle" fill="#667080" font-size="16">正在同步森林态势…</text>
+                            </svg>
+                            <div id="fmLegend" class="fm-legend"></div>
+                        </div>
+                    </article>
+
+                    <article class="side-card">
+                        <h4>分区火险气象</h4>
+                        <div id="zoneWeatherList">
+                            <div class="forest-empty">正在同步气象…</div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </section>
+
+        <!-- ==================== 火险事件 ==================== -->
+        <section id="panel-events" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>火险事件队列</h2>
+                        <div class="tip">活动森林火险事件按优先级排序，支持派发无人机复核与人工处置闭环。</div>
+                    </div>
+                    <button class="button small" onclick="loadEvents()">刷新事件</button>
+                </div>
+                <div class="toolbar">
+                    <select id="eventZoneFilter" class="control" onchange="loadEvents()">
+                        <option value="">全部分区</option>
+                    </select>
+                    <select id="eventLevelFilter" class="control" onchange="loadEvents()">
+                        <option value="">全部优先级</option>
+                        <option value="RED">RED</option>
+                        <option value="ORANGE">ORANGE</option>
+                        <option value="YELLOW">YELLOW</option>
+                        <option value="LOW">LOW</option>
+                    </select>
+                </div>
+                <div id="eventsList">
+                    <div class="forest-empty">正在同步事件…</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 监测节点 ==================== -->
+        <section id="panel-nodes" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>森林监测节点</h2>
+                        <div class="tip">全部森林监测节点（REAL 真实硬件 / DEMO 模拟节点），含最新云端判定状态。</div>
+                    </div>
+                    <button class="button small" onclick="loadNodes()">刷新节点</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>设备ID</th>
+                            <th>节点</th>
+                            <th>分区</th>
+                            <th>连接</th>
+                            <th>健康</th>
+                            <th>云端状态</th>
+                            <th>风险评分</th>
+                            <th>地图坐标</th>
+                        </tr>
+                        </thead>
+                        <tbody id="nodeTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 生态资源（古树 + 栖息地） ==================== -->
+        <section id="panel-resources" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>生态资源</h2>
+                        <div class="tip">古树名木档案与野生动物栖息地，为森林事件生态影响评估与回访服务。</div>
+                    </div>
+                </div>
+                <div class="seg-tabs">
+                    <button class="seg-tab on" data-res="trees" onclick="showResourceSub('trees')">古树档案</button>
+                    <button class="seg-tab" data-res="habitats" onclick="showResourceSub('habitats')">野生动物栖息地</button>
+                </div>
+
+                <div id="sub-trees" class="sub-view">
+                    <div class="toolbar" style="margin-bottom:14px">
+                        <select id="treeZoneFilter" class="control" onchange="loadTrees()">
+                            <option value="">全部分区</option>
+                        </select>
+                        <button class="button small" onclick="loadTrees()">刷新档案</button>
+                    </div>
+                    <div id="treesGrid" class="resource-grid">
+                        <div class="forest-empty">正在同步古树档案…</div>
+                    </div>
+                </div>
+
+                <div id="sub-habitats" class="sub-view" style="display:none">
+                    <div class="toolbar" style="margin-bottom:14px">
+                        <button class="button small" onclick="loadHabitats()">刷新栖息地</button>
+                    </div>
+                    <div id="habitatsGrid" class="resource-grid">
+                        <div class="forest-empty">正在同步栖息地…</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 巡护管理（无人机 + 生态回访 + 巡护人员） ==================== -->
+        <section id="panel-patrol" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>巡护管理</h2>
+                        <div class="tip">无人机火点复核、生态回访与巡护人员账号统一在此管理。</div>
+                    </div>
+                </div>
+                <div class="seg-tabs">
+                    <button class="seg-tab on" data-pat="drones" onclick="showPatrolSub('drones')">无人机复核</button>
+                    <button class="seg-tab" data-pat="followups" onclick="showPatrolSub('followups')">生态回访</button>
+                    <button class="seg-tab" data-pat="personnel" onclick="showPatrolSub('personnel')">巡护人员</button>
+                </div>
+
+                <div id="sub-drones" class="sub-view">
+                    <div class="section-head">
+                        <div>
+                            <h2 style="margin:0;font-size:16px">无人机巡航任务</h2>
+                            <div class="tip">火点复核任务状态机：PLANNED → DISPATCHED → EN_ROUTE → ON_SITE → RETURNED → COMPLETED。</div>
+                        </div>
+                        <button class="button small" onclick="loadDrones()">刷新任务</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>任务编号</th>
+                                <th>无人机</th>
+                                <th>目标</th>
+                                <th>状态</th>
+                                <th>派发时间</th>
+                                <th>到达时间</th>
+                                <th>复核结果</th>
+                                <th>操作</th>
+                            </tr>
+                            </thead>
+                            <tbody id="droneTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="sub-followups" class="sub-view" style="display:none">
+                    <div class="section-head">
+                        <div>
+                            <h2 style="margin:0;font-size:16px">生态回访任务</h2>
+                            <div class="tip">森林事件处置完成且环境恢复后，自动为事件点 1km 内古树 / 栖息地生成回访任务；未完成回访的事件不允许关闭。</div>
+                        </div>
+                        <button class="button small" onclick="loadFollowups()">刷新回访</button>
+                    </div>
+                    <div class="toolbar">
+                        <input id="followupAlarmFilter" class="control search-control" placeholder="按事件ID筛选（如 7）"
+                               onkeydown="if(event.key==='Enter') loadFollowups()">
+                        <select id="followupStateFilter" class="control" onchange="loadFollowups()">
+                            <option value="">全部状态</option>
+                            <option value="PENDING">待处理</option>
+                            <option value="IN_PROGRESS">进行中</option>
+                            <option value="COMPLETED">已完成</option>
+                        </select>
+                        <button class="button small" onclick="loadFollowups()">筛选</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>生态资源</th>
+                                <th>类型</th>
+                                <th>分区</th>
+                                <th>状态</th>
+                                <th>处理人</th>
+                                <th>完成/到期</th>
+                                <th>操作</th>
+                            </tr>
+                            </thead>
+                            <tbody id="followupTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="sub-personnel" class="sub-view" style="display:none">
+                    <div class="section-head">
+                        <div>
+                            <h2 style="margin:0;font-size:16px">巡护 / 管理账号</h2>
+                            <div class="tip">管理员与森林巡护员账号统一在此创建；巡护员必须绑定巡护区域（zoneId）。自助注册已关闭，账号由指挥台统一管理。</div>
+                        </div>
+                        <button class="button small" onclick="loadPersonnel()">刷新</button>
+                    </div>
+                    <div class="toolbar personnel-toolbar">
+                        <div class="personnel-form">
+                            <input id="personnelUsername" class="control" placeholder="用户名（3-32位）">
+                            <input id="personnelPassword" class="control" type="password" placeholder="密码（≥6位）">
+                            <select id="personnelRole" class="control" onchange="togglePersonnelZone()">
+                                <option value="resident">巡护员</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                            <select id="personnelZone" class="control">
+                                <option value="">选择巡护区域…</option>
+                            </select>
+                            <input id="personnelJobNum" class="control" placeholder="工号/编号（选填）">
+                            <input id="personnelPhone" class="control" placeholder="手机号（选填）">
+                            <button class="button primary" onclick="createPersonnel()">创建账号</button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>巡护区域</th>
+                                <th>手机号</th>
+                                <th>工号/编号</th>
+                                <th>操作</th>
+                            </tr>
+                            </thead>
+                            <tbody id="personnelTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 演示工具（次级） ==================== -->
+        <section id="panel-demo" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>演示工具</h2>
+                        <div class="tip">仅对 DEMO 模拟节点生效（演示数据）；真实硬件节点不会被注入任何模拟数据。选择模拟节点并触发可控场景，数据将逐步进入判定与事件链路。</div>
+                    </div>
+                    <span class="badge badge-purple">演示数据</span>
+                </div>
+
+                <div class="toolbar demo-toolbar">
+                    <select id="demoDeviceSelect" class="control">
+                        <option value="">正在同步模拟节点…</option>
+                    </select>
+                    <select id="demoScenarioSelect" class="control">
+                        <option value="">选择场景</option>
+                    </select>
+                    <button class="button primary" onclick="triggerDemoScenario()">触发场景</button>
+                    <button class="button small" onclick="loadDemoPanel()">刷新列表</button>
+                </div>
+
+                <div id="demoFeedback" class="demo-feedback"></div>
+
+                <div class="demo-guide">
+                    <div class="demo-guide-row"><span class="dg-scen">NORMAL</span><span class="dg-desc">正常环境，浓度在小幅波动，所有指标正常。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">SHORT_SPIKE</span><span class="dg-desc">短时尖峰：快速升高后回落，自动回到 NORMAL。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">RISING</span><span class="dg-desc">持续上升：逐步触发预警→报警链路。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">WARNING</span><span class="dg-desc">预警：浓度持续升高但尚未报警。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">ALARM</span><span class="dg-desc">持续高浓度报警，进入火险事件队列。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">RECOVERY</span><span class="dg-desc">从高浓度逐步恢复，观察事件自动闭环。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">OFFLINE</span><span class="dg-desc">设备离线，停止上报并标记为离线。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">STALE</span><span class="dg-desc">数据过期：停止上报并标记为 STALE（区别于离线）。</span></div>
+                    <div class="demo-guide-row"><span class="dg-scen">SENSOR_FAULT</span><span class="dg-desc">传感器数据异常，触发传感器故障健康状态。</span></div>
+                </div>
+
+                <div class="demo-guide demo-guide-loop">
+                    <div class="dg-title">森林火险事件处置闭环 · 演示步骤</div>
+                    <div class="demo-guide-row"><span class="dg-step">1</span><span class="dg-desc">选择 DEMO 节点（如 FS-N-002）并触发 <b>RISING / ALARM</b>，地图节点变红、事件进入队列顶部。</span></div>
+                    <div class="demo-guide-row"><span class="dg-step">2</span><span class="dg-desc">在事件详情点 <b>确认告警</b> → <b>派发无人机</b>（记录 DRONE_DISPATCHED）。</span></div>
+                    <div class="demo-guide-row"><span class="dg-step">3</span><span class="dg-desc">无人机任务点 <b>推进状态</b> 到现场，再 <b>确认火点</b> → 事件 drone_confirmed=1、优先级强制 ≥95（RED）。</span></div>
+                    <div class="demo-guide-row"><span class="dg-step">4</span><span class="dg-desc">触发 <b>RECOVERY</b>，烟雾恢复后系统自动写入环境恢复时间（不依赖人工确认）。</span></div>
+                    <div class="demo-guide-row"><span class="dg-step">5</span><span class="dg-desc">填写处置结果、点 <b>关闭事件</b>；若事件点 1km 内有古树/栖息地，需先完成<b>生态回访</b>才允许关闭。</span></div>
+                    <div class="demo-guide-row"><span class="dg-step">6</span><span class="dg-desc">整条链（发现→确认→派发无人机→确认火点→恢复→回访→关闭）在事件详情时间线中完整保留。</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 系统管理（次级） ==================== -->
+        <section id="panel-accounts" class="tab-panel">
+            <div class="section card">
+                <div class="section-head">
+                    <div>
+                        <h2>系统管理 · 账号</h2>
+                        <div class="tip">管理员与森林巡护员账号统一在此创建；巡护员必须绑定巡护区域（zoneId）。自助注册已关闭。</div>
+                    </div>
+                    <button class="button small" onclick="loadPersonnel()">刷新</button>
+                </div>
+
+                <div class="toolbar personnel-toolbar">
+                    <div class="personnel-form">
+                        <input id="accUsername" class="control" placeholder="用户名（3-32位）">
+                        <input id="accPassword" class="control" type="password" placeholder="密码（≥6位）">
+                        <select id="accRole" class="control" onchange="toggleAccZone()">
+                            <option value="resident">巡护员</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                        <select id="accZone" class="control">
+                            <option value="">选择巡护区域…</option>
+                        </select>
+                        <input id="accJobNum" class="control" placeholder="工号/编号（选填）">
+                        <input id="accPhone" class="control" placeholder="手机号（选填）">
+                        <button class="button primary" onclick="createAcc()">创建账号</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>角色</th>
+                            <th>巡护区域</th>
+                            <th>手机号</th>
+                            <th>工号/编号</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="accountsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 事件详情弹窗 ==================== -->
+        <dialog id="eventDetailDialog">
+            <div class="modal-head">
+                <h3 id="eventDetailTitle">火险事件详情</h3>
+                <button class="modal-close" onclick="closeDialog('eventDetailDialog')">×</button>
+            </div>
+            <div class="modal-body event-detail-body">
+                <div id="eventDetailBody" class="detail-loading">加载中…</div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button" onclick="closeDialog('eventDetailDialog')">关闭</button>
+            </div>
+        </dialog>
+
+        <!-- ==================== 古树详情弹窗 ==================== -->
+        <dialog id="treeDetailDialog">
+            <div class="modal-head">
+                <h3 id="treeDetailTitle">古树档案</h3>
+                <button class="modal-close" onclick="closeDialog('treeDetailDialog')">×</button>
+            </div>
+            <div class="modal-body tree-detail-body">
+                <div id="treeDetailBody" class="detail-loading">加载中…</div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button" onclick="closeDialog('treeDetailDialog')">关闭</button>
+            </div>
+        </dialog>
+
+        <dialog id="confirmDialog">
+            <div class="modal-head">
+                <h3 id="confirmTitle">确认操作</h3>
+                <button class="modal-close" type="button" onclick="resolveV5Confirm(false)">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="confirmText" style="color:#9299a7;font-size:13px;line-height:1.7"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="button" type="button" onclick="resolveV5Confirm(false)">取消</button>
+                <button id="confirmOkButton" class="button primary" type="button" onclick="resolveV5Confirm(true)">确认</button>
+            </div>
+        </dialog>
+
+        <div id="toast" class="toast"></div>
+    </main>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/v5-motion.js"></script>
+<script>
+    const forestState = {
+        currentUser: null,
+        zones: [],
+        overview: {},
+        map: null,
+        nodes: [],
+        events: [],
+        trees: [],
+        habitats: [],
+        drones: [],
+        followups: [],
+        demoDevices: [],
+        currentEventId: null,
+        currentTreeId: null
+    };
+
+    let toastTimer = null;
+    let confirmResolver = null;
+
+    function v5Confirm(title, text, okText = "确认", mode = "primary") {
+        const dialog = document.getElementById("confirmDialog");
+        document.getElementById("confirmTitle").innerText = title;
+        document.getElementById("confirmText").innerText = text;
+        const ok = document.getElementById("confirmOkButton");
+        ok.innerText = okText;
+        ok.className = mode === "danger" ? "button danger" : "button primary";
+        dialog.showModal();
+        return new Promise(resolve => { confirmResolver = resolve; });
+    }
+
+    function resolveV5Confirm(value) {
+        const dialog = document.getElementById("confirmDialog");
+        if (dialog.open) dialog.close();
+        if (confirmResolver) {
+            const resolve = confirmResolver;
+            confirmResolver = null;
+            resolve(Boolean(value));
+        }
+    }
+
+    /* ==================== 通用工具 ==================== */
+    function escapeHtml(value) {
+        return String(value ?? "--")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function formatNumber(value, digits = 3) {
+        if (value == null || value === "") return "--";
+        const n = Number(value);
+        return Number.isFinite(n) ? n.toFixed(digits) : "--";
+    }
+
+    function fmt(value) {
+        return formatNumber(value, 0);
+    }
+
+    function Integer(value) {
+        return Number(value) || 0;
+    }
+
+    function setMetric(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const n = Number(value);
+        if (!Number.isFinite(n)) {
+            el.innerText = "--";
+            return;
+        }
+        if (window.V5Motion) {
+            V5Motion.countTo(el, n, 0, 620);
+        } else {
+            el.innerText = String(n);
+        }
+    }
+
+    function showToast(message, type = "success") {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = `toast ${type} show`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    async function api(url, options = {}) {
+        const response = await fetch(url, options);
+        let data = null;
+        const text = await response.text();
+        if (text) {
+            try { data = JSON.parse(text); } catch (e) { data = text; }
+        }
+        if (!response.ok) {
+            const message = data && typeof data === "object" && data.message
+                ? data.message
+                : `请求失败（HTTP ${response.status}）`;
+            throw new Error(message);
+        }
+        return data;
+    }
+
+    function closeDialog(id) {
+        const dialog = document.getElementById(id);
+        if (dialog.open) dialog.close();
+    }
+
+    function statGo(tab) {
+        switchTab(tab);
+    }
+
+    function switchTab(name) {
+        document.querySelectorAll(".tab-button").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.tab === name);
+        });
+        document.querySelectorAll(".tab-panel").forEach(panel => {
+            panel.classList.toggle("active", panel.id === `panel-${name}`);
+        });
+
+        if (name === "overview") loadOverview();
+        if (name === "nodes") loadNodes();
+        if (name === "events") loadEvents();
+        if (name === "resources") showResourceSub("trees");
+        if (name === "patrol") showPatrolSub("drones");
+        if (name === "demo") loadDemoPanel();
+        if (name === "accounts") loadPersonnel();
+    }
+
+    document.querySelectorAll(".tab-button").forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    /* ==================== 管理员身份 ==================== */
+    async function ensureAdmin() {
+        if (!SmokeAuth.requireLogin()) return null;
+
+        let user = SmokeAuth.getUser();
+        if (!user) {
+            try {
+                user = await api("/api/auth/me");
+                SmokeAuth.saveUser(user);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        if (user.role !== "admin") {
+            window.location.replace("/index.html");
+            return null;
+        }
+
+        forestState.currentUser = user;
+        document.getElementById("adminGreeting").innerText = "森林公园生态安全指挥台";
+        document.getElementById("adminUsername").innerText = user.username || "管理员";
+        document.getElementById("adminMeta").innerText = user.jobNum
+            ? `管理员 · 工号 ${user.jobNum}`
+            : "管理员";
+
+        const now = new Date();
+        const chip = document.getElementById("liveDateChip");
+        if (chip) chip.innerText = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} · Live`;
+
+        return user;
+    }
+
+    /* ==================== 分区 ==================== */
+    async function loadZones() {
+        try {
+            const list = await api("/api/admin/forest/zones");
+            forestState.zones = Array.isArray(list) ? list : [];
+
+            const eventZone = document.getElementById("eventZoneFilter");
+            const treeZone = document.getElementById("treeZoneFilter");
+            if (eventZone) {
+                eventZone.innerHTML = '<option value="">全部分区</option>'
+                    + forestState.zones.map(z => `<option value="${Number(z.id)}">${escapeHtml(z.zoneCode)} ${escapeHtml(z.zoneName)}</option>`).join("");
+            }
+            if (treeZone) {
+                treeZone.innerHTML = '<option value="">全部分区</option>'
+                    + forestState.zones.map(z => `<option value="${Number(z.id)}">${escapeHtml(z.zoneCode)} ${escapeHtml(z.zoneName)}</option>`).join("");
+            }
+        } catch (e) {
+            console.error("加载分区失败", e);
+        }
+    }
+
+    /* ==================== 总览 ==================== */
+    async function loadOverview() {
+        const results = await Promise.allSettled([
+            api("/api/admin/forest/overview"),
+            api("/api/admin/forest/map")
+        ]);
+
+        const failed = results.some(r => r.status === "rejected");
+
+        if (results[0].status === "fulfilled") forestState.overview = results[0].value || {};
+        if (results[1].status === "fulfilled") forestState.map = results[1].value || null;
+
+        const bar = document.getElementById("overviewStaleBar");
+        if (bar) bar.style.display = failed ? "block" : "none";
+
+        renderOverview();
+    }
+
+    function renderOverview() {
+        const o = forestState.overview || {};
+        setMetric("statNodeCount", o.nodeCount);
+        setMetric("statNormalCount", o.normalNodeCount);
+        setMetric("statWarningCount", o.warningNodeCount);
+        setMetric("statActiveAlarm", o.activeAlarmCount);
+        setMetric("statAbnormalCount", o.abnormalNodeCount);
+        setMetric("statThreatCount", o.threatenedResourceCount);
+        setMetric("statPendingCount", o.pendingTaskCount);
+
+        const badge = document.getElementById("taskCountBadge");
+        if (badge) badge.innerText = o.pendingTaskCount != null ? String(o.pendingTaskCount) : "0";
+
+        renderForestMap(forestState.map);
+        renderTaskQueue(o.topEvents || []);
+        renderZoneWeather(o.zoneWeather || []);
+    }
+
+    /* ==================== 当前需要处理（任务队列） ==================== */
+    function evBorderClass(level) {
+        const s = String(level || "").toUpperCase();
+        if (s === "RED") return "ev-alarm";
+        if (s === "ORANGE") return "ev-warning";
+        if (s === "YELLOW") return "ev-stale";
+        return "ev-offline";
+    }
+
+    function renderTaskQueue(events) {
+        const root = document.getElementById("taskQueue");
+        if (!root) return;
+        if (!events.length) {
+            root.innerHTML = '<div class="task-empty">当前没有需要处置的活动事件，森林态势平稳。</div>';
+            return;
+        }
+        root.innerHTML = events.map((e, idx) => {
+            const hasDrone = Integer(e.droneConfirmed) === 1;
+            return `
+                <article class="dorm-event-item ${evBorderClass(e.priorityLevel)}">
+                    <div class="ev-rank">${idx + 1}</div>
+                    <div class="ev-main">
+                        <div class="ev-title">
+                            <b>${escapeHtml(e.zoneName || "未知分区")} · ${escapeHtml(e.nodeCode || "节点")}</b>
+                            <span class="prio-chip ${prioChipClass(e.priorityLevel)}">${escapeHtml(e.priorityLevel || "--")} ${fmt(e.priorityScore)}</span>
+                        </div>
+                        <div class="ev-meta">
+                            <span class="ev-duration">${escapeHtml(e.durationText || "--")}</span>
+                            ${disposalBadge(e.disposalState)}
+                            ${hasDrone ? '<span class="badge badge-green">已确认火点</span>' : '<span class="ev-pending-disp">待无人机复核</span>'}
+                        </div>
+                        <div class="ev-summary">${escapeHtml(e.ecoSummary || "附近无命中分档的生态资源")}</div>
+                    </div>
+                    <div class="ev-actions">
+                        <button class="button small" onclick="openEventDetail(${Number(e.id)})">处置 / 详情</button>
+                        ${!hasDrone ? `<button class="button small" onclick="dispatchDrone(${Number(e.id)})">派发无人机</button>` : ""}
+                    </div>
+                </article>`;
+        }).join("");
+    }
+
+    /* ==================== SVG 公园态势示意图 ==================== */
+    function affectedResourceCodes() {
+        const set = new Set();
+        (forestState.overview?.topEvents || []).forEach(e => {
+            (e.affectedResources || []).forEach(r => { if (r.code) set.add(r.code); });
+        });
+        return set;
+    }
+
+    function zoneCenter(zones, idx, defX, defY) {
+        const z = zones[idx];
+        return (z && z.mapCenterX != null)
+            ? [Number(z.mapCenterX), Number(z.mapCenterY)]
+            : [defX, defY];
+    }
+
+    function parkBase(zones) {
+        const [ax, ay] = zoneCenter(zones, 0, 300, 180);
+        const [bx, by] = zoneCenter(zones, 1, 560, 180);
+        const [cx, cy] = zoneCenter(zones, 2, 300, 420);
+        const [dx, dy] = zoneCenter(zones, 3, 560, 420);
+
+        let seed = 7;
+        const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        let canopy = "";
+        for (let i = 0; i < 46; i++) {
+            const x = (40 + rnd() * 920).toFixed(0);
+            const y = (40 + rnd() * 570).toFixed(0);
+            const r = (14 + rnd() * 26).toFixed(0);
+            const op = (0.05 + rnd() * 0.09).toFixed(2);
+            canopy += `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(82,150,110,${op})"/>`;
+        }
+
+        const lakeX = dx + 95, lakeY = dy + 95;
+        return `
+            <defs>
+                <radialGradient id="fmBaseGlow" cx="50%" cy="30%" r="75%">
+                    <stop offset="0%" stop-color="rgba(66,128,94,.16)"/>
+                    <stop offset="100%" stop-color="rgba(10,14,12,0)"/>
+                </radialGradient>
+            </defs>
+            <rect width="1000" height="650" fill="url(#fmBaseGlow)"/>
+            ${canopy}
+            <path class="fm-river" d="M100 560 C 280 530, 420 585, 560 545 C 700 510, 800 505, 920 470"/>
+            <ellipse class="fm-lake" cx="${lakeX}" cy="${lakeY}" rx="95" ry="40"/>
+            <path class="fm-road" d="M${ax} ${ay} H${bx}"/>
+            <path class="fm-road" d="M${cx} ${cy} H${dx}"/>
+            <path class="fm-road" d="M${ax} ${ay} V${cy}"/>
+            <path class="fm-road" d="M${bx} ${by} V${dy}"/>
+            <path class="fm-ring" d="M150 90 C 400 120, 640 90, 860 150 C 900 320, 870 520, 700 560 C 480 600, 300 560, 160 470 C 110 360, 110 220, 150 90 Z"/>`;
+    }
+
+    function renderForestMap(map) {
+        const svg = document.getElementById("forestSvg");
+        if (!svg) return;
+
+        if (!map) {
+            svg.innerHTML = '<text x="500" y="325" text-anchor="middle" fill="#667080" font-size="16">正在同步森林态势…</text>';
+            return;
+        }
+
+        const zones = map.zones || [];
+        const nodes = map.nodes || [];
+        const trees = map.trees || [];
+        const habitats = map.habitats || [];
+        const events = map.events || [];
+        const drones = map.drones || [];
+        const affected = affectedResourceCodes();
+
+        let html = parkBase(zones);
+        html += zones.map(zoneBlob).join("");
+        html += `<g id="layerTrees">${trees.map(t => treeMarker(t, affected)).join("")}${habitats.map(h => habitatMarker(h, affected)).join("")}</g>`;
+        html += `<g id="layerNodes">${nodes.map(nodeDot).join("")}</g>`;
+        html += `<g id="layerEvents">${events.map(eventMarker).join("")}</g>`;
+        html += `<g id="layerDrones">${drones.map(droneMarker).join("")}</g>`;
+
+        svg.innerHTML = html;
+        applyLayerState();
+
+        const legend = document.getElementById("fmLegend");
+        if (legend) legend.innerHTML = forestLegend();
+    }
+
+    function applyLayerState() {
+        const svg = document.getElementById("forestSvg");
+        if (!svg) return;
+        const nodeChk = document.getElementById("layerNodes");
+        if (nodeChk) svg.classList.toggle("svg-all-nodes", nodeChk.checked);
+        ["layerTrees", "layerEvents", "layerDrones"].forEach(id => {
+            const chk = document.getElementById(id);
+            const g = svg.querySelector("#" + id);
+            if (g) g.style.display = (chk && chk.checked) ? "" : "none";
+        });
+    }
+
+    ["layerNodes", "layerTrees", "layerEvents", "layerDrones"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", applyLayerState);
+    });
+
+    function zoneBlobPath(cx, cy, w, h) {
+        const x0 = cx - w / 2, x1 = cx + w / 2;
+        const y0 = cy - h / 2, y1 = cy + h / 2;
+        const kx = w * 0.20, ky = h * 0.24;
+        return [
+            `M ${x0} ${cy}`,
+            `C ${x0} ${cy - ky} ${cx - kx} ${y0} ${cx} ${y0}`,
+            `C ${cx + kx} ${y0} ${x1} ${cy - ky} ${x1} ${cy}`,
+            `C ${x1} ${cy + ky} ${cx + kx} ${y1} ${cx} ${y1}`,
+            `C ${cx - kx} ${y1} ${x0} ${cy + ky} ${x0} ${cy}`,
+            `Z`
+        ].join(" ");
+    }
+
+    function zoneBlob(z) {
+        const cx = Number(z.mapCenterX) || 300;
+        const cy = Number(z.mapCenterY) || 180;
+        const w = 300 - (Number(z.id) % 2) * 26;
+        const h = 210 - (Number(z.id) % 3) * 16;
+        const cls = z.riskLevel === "HIGH" ? "fm-blob-hi" : "fm-blob-md";
+        return `
+            <g class="fm-zone">
+                <path class="fm-blob ${cls}" d="${zoneBlobPath(cx, cy, w, h)}"/>
+                <text class="fm-zone-label" x="${cx}" y="${cy - 8}" text-anchor="middle">${escapeHtml(z.zoneCode)}</text>
+                <text class="fm-zone-sub" x="${cx}" y="${cy + 12}" text-anchor="middle">${escapeHtml(z.zoneName)}</text>
+                <text class="fm-zone-sub" x="${cx}" y="${cy + 27}" text-anchor="middle">火险 ${escapeHtml(z.riskLevel || "--")}</text>
+            </g>`;
+    }
+
+    function cloudClass(state) {
+        const s = String(state || "").toUpperCase();
+        if (s === "ALARM") return "fm-node-alarm";
+        if (s === "WARNING" || s === "PREWARNING") return "fm-node-warn";
+        if (s === "NORMAL") return "fm-node-ok";
+        return "fm-node-off";
+    }
+
+    function nodeDot(n) {
+        return `<circle class="fm-node ${cloudClass(n.cloudState)}" cx="${n.mapX}" cy="${n.mapY}" r="5.5">
+            <title>${escapeHtml(n.nodeCode)} · ${escapeHtml(n.nodeName)}\n云端 ${escapeHtml(n.cloudState || "--")} · 风险 ${fmt(n.riskScore)}</title></circle>`;
+    }
+
+    function treeMarker(t, affected) {
+        const threat = affected.has(t.treeCode);
+        return `<g class="fm-tree" transform="translate(${t.mapX},${t.mapY})">
+            ${threat ? '<circle class="fm-threat-ring" r="13" cx="0" cy="0"/>' : ""}
+            <title>${escapeHtml(t.treeCode)} ${escapeHtml(t.treeName)} · ${escapeHtml(t.ageYears != null ? t.ageYears + "年" : "--")} · ${escapeHtml(t.healthState || "--")}${threat ? " · 受威胁" : ""}</title>
+            <path d="M0 -12 L7 4 L3 4 L6 12 L-6 12 L-3 4 L-7 4 Z" fill="#3fbf7f" stroke="#1c3f2e" stroke-width="1"/>
+        </g>`;
+    }
+
+    function habitatMarker(h, affected) {
+        const threat = affected.has(h.habitatCode);
+        const cls = h.protectionLevel === "CORE" ? "fm-hab-core"
+            : h.protectionLevel === "HIGH" ? "fm-hab-high"
+                : "fm-hab-md";
+        return `<g class="fm-hab ${cls}" transform="translate(${h.mapX},${h.mapY})">
+            ${threat ? '<circle class="fm-threat-ring" r="13" cx="0" cy="0"/>' : ""}
+            <title>${escapeHtml(h.habitatCode)} ${escapeHtml(h.habitatName)} · ${escapeHtml(h.protectionLevel || "--")}保护${threat ? " · 受威胁" : ""}</title>
+            <path d="M0 -10 L7 0 L0 10 L-7 0 Z" fill="currentColor" stroke="#160b20" stroke-width="1.2"/>
+        </g>`;
+    }
+
+    function levelClass(level) {
+        const s = String(level || "").toUpperCase();
+        if (s === "RED") return "fm-lv-red";
+        if (s === "ORANGE") return "fm-lv-orange";
+        if (s === "YELLOW") return "fm-lv-yellow";
+        return "fm-lv-low";
+    }
+
+    function eventMarker(e) {
+        return `<g class="fm-event" transform="translate(${e.mapX},${e.mapY})">
+            <title>事件 #${e.alarmId} · ${escapeHtml(e.priorityLevel || "--")} ${fmt(e.priorityScore)}分 · ${escapeHtml(e.nodeCode || "")}</title>
+            <circle class="fm-event-ring" r="15"/>
+            <circle class="fm-event-core ${levelClass(e.priorityLevel)}" r="6"/>
+        </g>`;
+    }
+
+    function droneMarker(d) {
+        const id = String(d.droneId || "U").replace("DRONE-", "");
+        return `<g class="fm-drone" transform="translate(${d.targetMapX},${d.targetMapY})">
+            <title>${escapeHtml(d.droneId)} · ${escapeHtml(d.missionCode)} · ${droneStateLabel(d.state)}</title>
+            <rect x="-11" y="-6" width="22" height="12" rx="3" fill="#0d2b40" stroke="#65c7ff"/>
+            <text x="0" y="2.5" text-anchor="middle" font-size="7" fill="#bfe9ff">${escapeHtml(id)}</text>
+        </g>`;
+    }
+
+    function forestLegend() {
+        const items = [
+            ["#56df94", "正常节点"],
+            ["#ffb657", "预警/受威胁"],
+            ["#ff6f6b", "报警/活动事件"],
+            ["#a0a7b2", "离线/异常"],
+            ["#3fbf7f", "古树"],
+            ["#be9eff", "栖息地"],
+            ["#65c7ff", "无人机"]
+        ];
+        return items.map(([c, t]) =>
+            `<span class="fm-legend-item"><i style="background:${c}"></i>${t}</span>`).join("");
+    }
+
+    /* ==================== 分区气象 ==================== */
+    function weatherScoreClass(score) {
+        if (score == null) return "";
+        if (score >= 75) return "sc-hi";
+        if (score >= 50) return "sc-md";
+        return "sc-lo";
+    }
+
+    function renderZoneWeather(rows) {
+        const root = document.getElementById("zoneWeatherList");
+        if (!root) return;
+        if (!rows.length) {
+            root.innerHTML = '<div class="forest-empty">暂无气象数据</div>';
+            return;
+        }
+        root.innerHTML = rows.map(z => `
+            <div class="zw-row">
+                <div class="zw-head">
+                    <span class="zw-name">${escapeHtml(z.zoneName)}</span>
+                    <b class="zw-score ${weatherScoreClass(z.fireWeatherScore)}">${z.fireWeatherScore != null ? z.fireWeatherScore + " 分" : "--"}</b>
+                </div>
+                <div class="zw-metrics">
+                    <span>温度 <b>${z.temperature != null ? fmt(z.temperature) + "℃" : "--"}</b></span>
+                    <span>湿度 <b>${z.humidity != null ? fmt(z.humidity) + "%" : "--"}</b></span>
+                    <span>土壤 <b>${z.soilMoisture != null ? fmt(z.soilMoisture) + "%" : "--"}</b></span>
+                </div>
+            </div>`).join("");
+    }
+
+    /* ==================== 优先级工具 ==================== */
+    function prioDotClass(level) {
+        const s = String(level || "").toUpperCase();
+        if (s === "RED") return "red";
+        if (s === "ORANGE") return "orange";
+        if (s === "YELLOW") return "yellow";
+        return "low";
+    }
+
+    function prioChipClass(level) {
+        return prioDotClass(level);
+    }
+
+    /* ==================== 监测节点 ==================== */
+    async function loadNodes() {
+        try {
+            const list = await api("/api/admin/forest/nodes");
+            forestState.nodes = Array.isArray(list) ? list : [];
+            renderNodes();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function renderNodes() {
+        const body = document.getElementById("nodeTable");
+        if (!body) return;
+        if (!forestState.nodes.length) {
+            body.innerHTML = '<tr><td colspan="8" class="empty">暂无监测节点</td></tr>';
+            return;
+        }
+        body.innerHTML = forestState.nodes.map(n => {
+            const online = Number(n.status) === 1;
+            return `
+                <tr>
+                    <td>${escapeHtml(n.deviceId)}</td>
+                    <td><b>${escapeHtml(n.nodeCode)}</b><br><span class="cell-sub">${escapeHtml(n.nodeName || "--")}</span></td>
+                    <td>${escapeHtml(n.zoneName || "--")}</td>
+                    <td>${online ? '<span class="badge badge-green">在线</span>' : '<span class="badge badge-gray">离线</span>'}</td>
+                    <td>${healthBadge(n.healthStatus)}</td>
+                    <td>${cloudStateBadge(n.cloudState)}</td>
+                    <td>${n.riskScore != null ? fmt(n.riskScore) : "--"}</td>
+                    <td>${n.mapX != null ? escapeHtml(n.mapX + ", " + n.mapY) : "--"}</td>
+                </tr>`;
+        }).join("");
+    }
+
+    /* ==================== 火险事件 ==================== */
+    async function loadEvents() {
+        const zoneId = document.getElementById("eventZoneFilter").value;
+        const level = document.getElementById("eventLevelFilter").value;
+        const params = new URLSearchParams();
+        if (zoneId) params.set("zoneId", zoneId);
+        if (level) params.set("level", level);
+        const q = params.toString();
+        try {
+            const list = await api(`/api/admin/forest/events${q ? "?" + q : ""}`);
+            forestState.events = Array.isArray(list) ? list : [];
+            renderEvents();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function renderEvents() {
+        const root = document.getElementById("eventsList");
+        if (!root) return;
+        if (!forestState.events.length) {
+            root.innerHTML = '<div class="forest-empty">暂无符合条件的火险事件</div>';
+            return;
+        }
+        root.innerHTML = forestState.events.map(e => {
+            const disp = e.disposalState || "NEW";
+            const hasDrone = Integer(e.droneConfirmed) === 1;
+            return `
+                <article class="event-card">
+                    <div class="event-card-left">
+                        <span class="prio-chip ${prioChipClass(e.priorityLevel)}">${escapeHtml(e.priorityLevel || "--")}</span>
+                    </div>
+                    <div class="event-card-main">
+                        <div class="event-card-title">${escapeHtml(e.location || ("事件 #" + e.id))}</div>
+                        <div class="event-card-meta">
+                            <span>#${e.id} · ${escapeHtml(e.alarmTime || "")}</span>
+                            <span>可信度 ${fmt(e.fireConfidenceScore)}</span>
+                            <span>气象 ${fmt(e.fireWeatherScore)}</span>
+                            <span>古树影响 ${fmt(e.ancientTreeImpactScore)}</span>
+                            <span>栖息地影响 ${fmt(e.wildlifeImpactScore)}</span>
+                        </div>
+                        ${e.priorityReason ? `<div class="event-card-reason">${escapeHtml(e.priorityReason)}</div>` : ""}
+                        <div class="event-card-badges">
+                            ${hasDrone ? '<span class="badge badge-green">无人机已确认火点</span>' : '<span class="badge badge-gray">待无人机复核</span>'}
+                            ${disposalBadge(disp)}
+                        </div>
+                    </div>
+                    <div class="event-card-actions">
+                        <button class="button small" onclick="openEventDetail(${Number(e.id)})">处置 / 详情</button>
+                        ${!hasDrone ? `<button class="button small" onclick="dispatchDrone(${Number(e.id)})">派发无人机</button>` : ""}
+                    </div>
+                </article>`;
+        }).join("");
+    }
+
+    /* ==================== 事件详情 ==================== */
+    async function openEventDetail(id) {
+        forestState.currentEventId = id;
+        const dialog = document.getElementById("eventDetailDialog");
+        const body = document.getElementById("eventDetailBody");
+        document.getElementById("eventDetailTitle").innerText = `火险事件详情 #${id}`;
+        body.innerHTML = '<div class="detail-loading">加载中…</div>';
+        dialog.showModal();
+        await refreshEventDetail();
+    }
+
+    async function refreshEventDetail() {
+        const id = forestState.currentEventId;
+        const body = document.getElementById("eventDetailBody");
+        if (id == null) return;
+        try {
+            const d = await api(`/api/admin/forest/events/${id}`);
+            renderEventDetail(body, d);
+        } catch (e) {
+            body.innerHTML = `<div class="detail-loading" style="color:#ff7975">${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function refreshIfDetailOpen() {
+        const dlg = document.getElementById("eventDetailDialog");
+        if (dlg && dlg.open) refreshEventDetail();
+    }
+
+    function renderEventDetail(body, d) {
+        const alarm = d.alarm || {};
+        const device = d.device || null;
+        const timeline = d.timeline || [];
+        const followups = d.followups || [];
+        const missions = d.missions || [];
+        const recovered = alarm.recoverTime != null;
+        const confirmed = Integer(alarm.droneConfirmed) === 1;
+
+        const scoreGrid = `
+            <div class="fd-score-grid">
+                <div class="fd-score"><span>火险可信度</span><b>${fmt(alarm.fireConfidenceScore)}</b></div>
+                <div class="fd-score"><span>火险气象</span><b>${fmt(alarm.fireWeatherScore)}</b></div>
+                <div class="fd-score"><span>古树影响</span><b>${fmt(alarm.ancientTreeImpactScore)}</b></div>
+                <div class="fd-score"><span>栖息地影响</span><b>${fmt(alarm.wildlifeImpactScore)}</b></div>
+                <div class="fd-score fd-score-prio"><span>事件优先级</span><b>${fmt(alarm.priorityScore)}</b></div>
+                <div class="fd-score"><span>无人机确认</span><b>${confirmed ? "已确认" : "未执行"}</b></div>
+            </div>`;
+
+        const scoreWhy = alarm.priorityReason
+            ? `<details class="score-why"><summary>评分依据</summary>
+                <div class="fd-reason">${escapeHtml(alarm.priorityReason)}</div></details>`
+            : "";
+
+        body.innerHTML = `
+            <div class="fd-head">
+                <div>
+                    <div class="fd-title">${escapeHtml(alarm.location || ("事件 #" + alarm.id))}</div>
+                    <div class="fd-meta">
+                        <span class="prio-chip ${prioChipClass(alarm.priorityLevel)}">${escapeHtml(alarm.priorityLevel || "--")}</span>
+                        <span>#${alarm.id}</span>
+                        <span>${escapeHtml(alarm.alarmTime || "")}</span>
+                        <span>${escapeHtml((device && device.nodeCode) || "--")}</span>
+                        <span>${escapeHtml((device && device.nodeName) || "")}</span>
+                    </div>
+                </div>
+                ${recovered ? '<span class="badge badge-green">环境已恢复</span>' : '<span class="badge badge-red">环境异常 · 未恢复</span>'}
+            </div>
+            ${scoreWhy}
+            ${scoreGrid}
+            ${disposalSection(alarm, recovered)}
+            ${droneSection(alarm, missions)}
+            ${followupSection(followups)}
+            <div class="fd-title">处置时间线</div>
+            ${timelineSection(timeline)}`;
+    }
+
+    function disposalSection(alarm, recovered) {
+        const disp = alarm.disposalState || "NEW";
+        const id = Number(alarm.id);
+        let actions = "";
+        if (disp === "NEW") {
+            actions = `<button class="button primary" onclick="forestDisposal('confirm', ${id})">确认告警</button>`;
+        } else if (disp === "ACKNOWLEDGED") {
+            actions = `<button class="button primary" onclick="forestDisposal('onsite', ${id})">标记到场</button>`;
+        } else if (disp === "ON_SITE") {
+            actions = `<button class="button primary" onclick="forestDisposal('resolve', ${id})">填写处置结果</button>`;
+        } else if (disp === "RESOLVED") {
+            actions = recovered
+                ? `<button class="button" onclick="forestDisposal('close', ${id})">关闭事件</button>`
+                : '<button class="button" disabled title="环境尚未恢复，暂不能关闭事件">关闭事件</button>';
+        } else {
+            actions = '<span class="badge badge-green">事件已关闭</span>';
+        }
+        return `
+            <div class="fd-title">人工处置</div>
+            <div class="fd-block">
+                <div class="fd-toolbar">
+                    <input id="disposalRemarkInput" class="input" placeholder="处置备注 / 处置结果（可选）">
+                    ${actions}
+                </div>
+                <div class="fd-disp-badge">当前处置状态：${disposalBadge(disp)} · ${recovered ? "环境已恢复" : "环境未恢复"}</div>
+                ${disp === "RESOLVED" && !recovered ? '<div class="fd-hint">环境尚未恢复，需等待烟雾恢复后由系统自动写入 recoverTime 才能关闭事件。</div>' : ""}
+                ${disp === "RESOLVED" && recovered ? '<div class="fd-hint">关闭事件前请确认生态回访任务均已完成后系统才允许关闭。</div>' : ""}
+            </div>`;
+    }
+
+    async function forestDisposal(action, alarmId) {
+        const remarkInput = document.getElementById("disposalRemarkInput");
+        const remark = remarkInput ? remarkInput.value.trim() : "";
+        try {
+            let url = "";
+            let body;
+            if (action === "confirm") {
+                url = `/api/alarm/${alarmId}/handle`;
+            } else if (action === "onsite") {
+                url = `/api/admin/alarms/${alarmId}/on-site`;
+            } else if (action === "resolve") {
+                url = `/api/admin/alarms/${alarmId}/resolve`;
+                body = { remark };
+            } else {
+                url = `/api/admin/alarms/${alarmId}/close`;
+                body = remark ? { remark } : {};
+            }
+            const res = await api(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+            });
+            showToast(res.message || "操作成功", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadEvents();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function droneSection(alarm, missions) {
+        const active = missions.filter(m => String(m.state || "").toUpperCase() !== "COMPLETED");
+        const missionRows = missions.length
+            ? missions.map(droneMissionRow).join("")
+            : '<div class="forest-empty">尚未派发无人机任务</div>';
+
+        return `
+            <div class="fd-title">无人机复核</div>
+            <div class="fd-block">
+                <div class="fd-toolbar">
+                    <input id="droneNoteInput" class="input" placeholder="航拍复核说明（可选）">
+                    <button class="button primary" onclick="dispatchDrone(${Number(alarm.id)})">派发无人机</button>
+                </div>
+                ${active.length ? '<div class="fd-hint">先点“推进状态”直到“现场”，再确认火点。</div>' : ""}
+                <div class="fd-mission-list">${missionRows}</div>
+            </div>`;
+    }
+
+    function droneMissionRow(m) {
+        const st = String(m.state || "").toUpperCase();
+        const onSite = st === "ON_SITE" || st === "RETURNED";
+        const done = st === "COMPLETED";
+        return `
+            <div class="fd-mission">
+                <div class="fd-mission-head">
+                    <b>${escapeHtml(m.missionCode)}</b>
+                    ${droneStateBadge(st)}
+                    <span>${escapeHtml(m.droneId)}</span>
+                    ${done ? `<span class="badge ${Integer(m.confirmedFire) === 1 ? "badge-green" : "badge-gray"}">${Integer(m.confirmedFire) === 1 ? "已确认火点" : "未发现火点"}</span>` : ""}
+                </div>
+                <div class="fd-mission-meta">
+                    <span>目标 ${escapeHtml(m.targetNodeCode || "--")}</span>
+                    <span>派发 ${escapeHtml(m.dispatchTime || "--")}</span>
+                    <span>到达 ${escapeHtml(m.arriveTime || "--")}</span>
+                    <span>完成 ${escapeHtml(m.completeTime || "--")}</span>
+                </div>
+                ${m.resultNote ? `<div class="fd-mission-note">${escapeHtml(m.resultNote)}</div>` : ""}
+                <div class="fd-mission-actions">
+                    ${!done ? `<button class="button small" onclick="advanceDrone(${Number(m.id)})">推进状态</button>` : ""}
+                    ${onSite ? `<button class="button small" onclick="confirmDrone(${Number(m.id)}, true)">确认火点</button>
+                        <button class="button small" onclick="confirmDrone(${Number(m.id)}, false)">未发现火点</button>` : ""}
+                </div>
+            </div>`;
+    }
+
+    async function dispatchDrone(eventId) {
+        try {
+            const res = await api(`/api/admin/forest/events/${eventId}/dispatch-drone`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ droneId: "DRONE-01" })
+            });
+            showToast(res.message || "无人机已派发", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadEvents();
+            loadDrones();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    async function advanceDrone(missionId) {
+        try {
+            const res = await api(`/api/admin/forest/drones/missions/${missionId}/advance`, { method: "POST" });
+            showToast(res.message || "无人机任务已推进", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadDrones();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    async function confirmDrone(missionId, confirmed) {
+        const noteInput = document.getElementById("droneNoteInput");
+        const note = noteInput ? noteInput.value.trim() : "";
+        try {
+            const res = await api(`/api/admin/forest/drones/missions/${missionId}/confirm`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ confirmed, note })
+            });
+            showToast(res.message || "已记录复核结果", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadDrones();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function followupSection(followups) {
+        const rows = followups.length
+            ? followups.map(f => `
+                <div class="fd-followup">
+                    <div class="fd-followup-head">
+                        <b>${escapeHtml(f.assetName || f.assetCode || "--")}</b>
+                        ${followupStateBadge(f.state)}
+                    </div>
+                    <div class="fd-followup-meta">
+                        <span>${escapeHtml(f.assetCode || "--")}</span>
+                        <span>${assetTypeLabel(f.assetType)}</span>
+                        <span>处理人 ${escapeHtml(f.handler || "--")}</span>
+                        <span>应完成 ${escapeHtml(f.dueTime || "--")}</span>
+                        ${f.completedTime ? `<span>完成 ${escapeHtml(f.completedTime)}</span>` : ""}
+                    </div>
+                    ${f.followupNote ? `<div class="fd-followup-note">${escapeHtml(f.followupNote)}</div>` : ""}
+                    <div class="fd-followup-actions">
+                        ${f.state === "PENDING" ? `<button class="button small" onclick="startFollowup(${Number(f.id)})">开始回访</button>` : ""}
+                        ${(f.state === "PENDING" || f.state === "IN_PROGRESS") ? `<button class="button small" onclick="completeFollowup(${Number(f.id)})">完成回访</button>` : ""}
+                    </div>
+                </div>`).join("")
+            : '<div class="forest-empty">该事件未生成生态回访任务（非森林事件 / 环境未恢复 / 附近无生态资源）</div>';
+
+        return `
+            <div class="fd-title">生态回访</div>
+            <div class="fd-block">${rows}</div>`;
+    }
+
+    async function startFollowup(id) {
+        try {
+            const res = await api(`/api/admin/forest/followups/${id}/start`, { method: "POST" });
+            showToast(res.message || "已开始回访", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadFollowups();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    async function completeFollowup(id) {
+        const note = window.prompt("回访说明（如：古树状态良好，无烧伤痕迹）：", "") || "";
+        try {
+            const res = await api(`/api/admin/forest/followups/${id}/complete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note })
+            });
+            showToast(res.message || "回访已完成", "success");
+            refreshIfDetailOpen();
+            loadOverview();
+            loadFollowups();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function timelineSection(timeline) {
+        if (!timeline.length) return '<div class="forest-empty">暂无时间线记录</div>';
+        return `<div class="fd-timeline">${timeline.map(ev => `
+            <div class="fd-tl-item">
+                <i class="fd-tl-dot"></i>
+                <div class="fd-tl-body">
+                    <div class="fd-tl-head">
+                        <b>${escapeHtml(ev.eventLabel || ev.eventType)}</b>
+                        <span>${escapeHtml(ev.eventTime || "")}</span>
+                    </div>
+                    ${ev.description ? `<div class="fd-tl-desc">${escapeHtml(ev.description)}</div>` : ""}
+                    ${ev.operator ? `<div class="fd-tl-op">操作人 ${escapeHtml(ev.operator)}</div>` : ""}
+                </div>
+            </div>`).join("")}</div>`;
+    }
+
+    /* ==================== 生态资源：古树档案 ==================== */
+    function showResourceSub(name) {
+        document.querySelectorAll("[data-res]").forEach(b => b.classList.toggle("on", b.dataset.res === name));
+        const t = document.getElementById("sub-trees");
+        const h = document.getElementById("sub-habitats");
+        if (t) t.style.display = name === "trees" ? "" : "none";
+        if (h) h.style.display = name === "habitats" ? "" : "none";
+        if (name === "trees") loadTrees();
+        else loadHabitats();
+    }
+
+    async function loadTrees() {
+        const zoneId = document.getElementById("treeZoneFilter").value;
+        const q = zoneId ? `?zoneId=${zoneId}` : "";
+        try {
+            const list = await api(`/api/admin/forest/trees${q}`);
+            forestState.trees = Array.isArray(list) ? list : [];
+            renderTrees();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function treeHealthCls(state) {
+        const s = String(state || "").toUpperCase();
+        if (s === "HEALTHY") return "badge-green";
+        if (s === "FAIR") return "badge-yellow";
+        if (s === "POOR") return "badge-orange";
+        if (s === "CRITICAL") return "badge-red";
+        return "badge-gray";
+    }
+
+    function renderTrees() {
+        const root = document.getElementById("treesGrid");
+        if (!root) return;
+        if (!forestState.trees.length) {
+            root.innerHTML = '<div class="forest-empty">暂无古树档案</div>';
+            return;
+        }
+        root.innerHTML = forestState.trees.map(t => `
+            <article class="tree-card" onclick="openTreeDetail(${Number(t.id)})">
+                <div class="tree-card-head">
+                    <span class="tree-code">${escapeHtml(t.treeCode)}</span>
+                    <span class="badge ${treeHealthCls(t.healthState)}">${escapeHtml(t.healthState || "未知")}</span>
+                </div>
+                <h3 class="tree-name">${escapeHtml(t.treeName)}</h3>
+                <div class="tree-species">${escapeHtml(t.scientificName || t.species || "--")}</div>
+                <div class="tree-meta">
+                    <span>树龄 ${t.ageYears != null ? escapeHtml(t.ageYears + " 年") : "--"}</span>
+                    <span>${escapeHtml(t.protectionLevel || "--")}保护</span>
+                    <span>${escapeHtml(t.zoneName || "--")}</span>
+                    <span>${escapeHtml(t.nodeCode || "--")}</span>
+                </div>
+                ${t.description ? `<div class="tree-desc">${escapeHtml(t.description)}</div>` : ""}
+            </article>`).join("");
+    }
+
+    async function openTreeDetail(id) {
+        forestState.currentTreeId = id;
+        const dialog = document.getElementById("treeDetailDialog");
+        const body = document.getElementById("treeDetailBody");
+        document.getElementById("treeDetailTitle").innerText = `古树档案 #${id}`;
+        body.innerHTML = '<div class="detail-loading">加载中…</div>';
+        dialog.showModal();
+        await refreshTreeDetail();
+    }
+
+    async function refreshTreeDetail() {
+        const id = forestState.currentTreeId;
+        const body = document.getElementById("treeDetailBody");
+        if (id == null) return;
+        try {
+            const d = await api(`/api/admin/forest/trees/${id}`);
+            renderTreeDetail(body, d);
+        } catch (e) {
+            body.innerHTML = `<div class="detail-loading" style="color:#ff7975">${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function renderTreeDetail(body, d) {
+        const tree = d.tree || {};
+        const inspections = d.inspections || [];
+
+        const rows = [
+            ["编号", escapeHtml(tree.treeCode)],
+            ["名称", escapeHtml(tree.treeName)],
+            ["学名", escapeHtml(tree.scientificName)],
+            ["科属", escapeHtml(tree.species)],
+            ["树龄", tree.ageYears != null ? escapeHtml(tree.ageYears + " 年") : "--"],
+            ["保护等级", escapeHtml(tree.protectionLevel)],
+            ["所属区域", escapeHtml(tree.zoneName)],
+            ["最近节点", escapeHtml(tree.nodeCode)],
+            ["健康状态", escapeHtml(tree.healthState)],
+            ["胸径", tree.diameterCm != null ? escapeHtml(tree.diameterCm + " cm") : "--"],
+            ["树高", tree.heightM != null ? escapeHtml(tree.heightM + " m") : "--"],
+            ["位置", tree.latitude != null ? escapeHtml(tree.latitude + ", " + tree.longitude) : "--"]
+        ].map(([k, v]) => `<div class="fd-score"><span>${k}</span><b>${v}</b></div>`).join("");
+
+        const inspHtml = inspections.length
+            ? `<div class="fd-timeline">${inspections.map(ev => `
+                <div class="fd-tl-item">
+                    <i class="fd-tl-dot"></i>
+                    <div class="fd-tl-body">
+                        <div class="fd-tl-head">
+                            <b>${escapeHtml(ev.inspectionDate || "")}</b>
+                            <span>${escapeHtml(ev.inspector || "--")}</span>
+                        </div>
+                        <div class="fd-tl-desc">健康：${escapeHtml(ev.healthState || "--")} · 病虫害：${escapeHtml(ev.pestRisk || "--")}</div>
+                        ${ev.description ? `<div class="fd-tl-desc">${escapeHtml(ev.description)}</div>` : ""}
+                    </div>
+                </div>`).join("")}</div>`
+            : '<div class="forest-empty">暂无巡护检查记录</div>';
+
+        body.innerHTML = `
+            <div class="fd-head">
+                <div>
+                    <div class="fd-title">${escapeHtml(tree.treeName)}（${escapeHtml(tree.treeCode)}）</div>
+                    <div class="fd-meta"><span>${escapeHtml(tree.zoneName || "--")}</span><span>${escapeHtml(tree.nodeCode || "--")}</span></div>
+                </div>
+            </div>
+            ${tree.description ? `<div class="fd-reason">${escapeHtml(tree.description)}</div>` : ""}
+            <div class="fd-score-grid">${rows}</div>
+            <div class="fd-title">新增巡护检查</div>
+            <div class="fd-block">
+                <div class="fd-toolbar">
+                    <select id="treeHealthInput" class="control">
+                        <option value="">健康状态</option>
+                        <option value="HEALTHY">HEALTHY 健康</option>
+                        <option value="FAIR">FAIR 亚健康</option>
+                        <option value="POOR">POOR 衰弱</option>
+                        <option value="CRITICAL">CRITICAL 濒危</option>
+                    </select>
+                    <select id="treePestInput" class="control">
+                        <option value="">病虫害风险</option>
+                        <option value="无">无</option>
+                        <option value="低">低</option>
+                        <option value="中">中</option>
+                        <option value="高">高</option>
+                    </select>
+                    <input id="treeDescInput" class="input" placeholder="检查说明（如：长势良好）">
+                    <button class="button primary" onclick="addTreeInspection(${Number(tree.id)})">保存检查</button>
+                </div>
+            </div>
+            <div class="fd-title">巡护检查记录</div>
+            ${inspHtml}`;
+    }
+
+    async function addTreeInspection(treeId) {
+        const health = document.getElementById("treeHealthInput").value;
+        const pest = document.getElementById("treePestInput").value;
+        const desc = document.getElementById("treeDescInput").value.trim();
+        try {
+            const res = await api(`/api/admin/forest/trees/${treeId}/inspection`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ healthState: health, pestRisk: pest, description: desc })
+            });
+            showToast(res.message || "检查记录已保存", "success");
+            refreshTreeDetail();
+            loadTrees();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    /* ==================== 生态资源：野生动物栖息地 ==================== */
+    async function loadHabitats() {
+        try {
+            const list = await api("/api/admin/forest/habitats");
+            forestState.habitats = Array.isArray(list) ? list : [];
+            renderHabitats();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function habProtCls(level) {
+        const s = String(level || "").toUpperCase();
+        if (s === "CORE") return "badge-purple";
+        if (s === "HIGH") return "badge-orange";
+        return "badge-yellow";
+    }
+
+    function renderHabitats() {
+        const root = document.getElementById("habitatsGrid");
+        if (!root) return;
+        if (!forestState.habitats.length) {
+            root.innerHTML = '<div class="forest-empty">暂无野生动物栖息地</div>';
+            return;
+        }
+        root.innerHTML = forestState.habitats.map(h => `
+            <article class="hab-card">
+                <div class="hab-card-head">
+                    <span class="hab-code">${escapeHtml(h.habitatCode)}</span>
+                    <span class="badge ${habProtCls(h.protectionLevel)}">${escapeHtml(h.protectionLevel || "--")}保护</span>
+                </div>
+                <h3 class="hab-name">${escapeHtml(h.habitatName)}</h3>
+                <div class="hab-species">${escapeHtml(h.speciesKeywords || "--")}</div>
+                <div class="hab-meta">
+                    <span>${escapeHtml(h.zoneName || "--")}</span>
+                    <span>面积 ${h.areaKm2 != null ? escapeHtml(h.areaKm2 + " km²") : "--"}</span>
+                    <span>火险敏感 ${escapeHtml(h.riskLevel || "--")}</span>
+                </div>
+                ${h.description ? `<div class="hab-desc">${escapeHtml(h.description)}</div>` : ""}
+            </article>`).join("");
+    }
+
+    /* ==================== 巡护管理：无人机任务 ==================== */
+    function showPatrolSub(name) {
+        document.querySelectorAll("[data-pat]").forEach(b => b.classList.toggle("on", b.dataset.pat === name));
+        ["drones", "followups", "personnel"].forEach(n => {
+            const el = document.getElementById("sub-" + n);
+            if (el) el.style.display = name === n ? "" : "none";
+        });
+        if (name === "drones") loadDrones();
+        if (name === "followups") loadFollowups();
+        if (name === "personnel") loadPersonnel();
+    }
+
+    function droneStateLabel(state) {
+        const map = {
+            "PLANNED": "待派发",
+            "DISPATCHED": "已派发",
+            "EN_ROUTE": "前往途中",
+            "ON_SITE": "已到达现场",
+            "RETURNED": "返航中",
+            "COMPLETED": "已完成"
+        };
+        return map[String(state || "").toUpperCase()] || state || "--";
+    }
+
+    function droneStateBadgeCls(state) {
+        const s = String(state || "").toUpperCase();
+        if (s === "COMPLETED") return "badge-green";
+        if (s === "ON_SITE") return "badge-yellow";
+        if (s === "EN_ROUTE" || s === "RETURNED") return "badge-blue";
+        return "badge-gray";
+    }
+
+    function droneStateBadge(state) {
+        const s = String(state || "").toUpperCase();
+        const cls = droneStateBadgeCls(s);
+        return `<span class="badge ${cls}">${droneStateLabel(s)}</span>`;
+    }
+
+    async function loadDrones() {
+        try {
+            const list = await api("/api/admin/forest/drones");
+            forestState.drones = Array.isArray(list) ? list : [];
+            renderDrones();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function renderDrones() {
+        const body = document.getElementById("droneTable");
+        if (!body) return;
+        if (!forestState.drones.length) {
+            body.innerHTML = '<tr><td colspan="9" class="empty">暂无无人机任务</td></tr>';
+            return;
+        }
+        body.innerHTML = forestState.drones.map(m => {
+            const st = String(m.state || "").toUpperCase();
+            const onSite = st === "ON_SITE" || st === "RETURNED";
+            const done = st === "COMPLETED";
+            return `
+                <tr>
+                    <td>${escapeHtml(m.id)}</td>
+                    <td><b>${escapeHtml(m.missionCode)}</b></td>
+                    <td>${escapeHtml(m.droneId)}</td>
+                    <td>${escapeHtml(m.zoneName || "--")} · ${escapeHtml(m.targetNodeCode || "--")}</td>
+                    <td>${droneStateBadge(st)}</td>
+                    <td>${escapeHtml(m.dispatchTime || "--")}</td>
+                    <td>${escapeHtml(m.arriveTime || "--")}</td>
+                    <td>${done ? (Integer(m.confirmedFire) === 1 ? '<span class="badge badge-green">已确认火点</span>' : '<span class="badge badge-gray">未发现火点</span>') : "--"}</td>
+                    <td>
+                        <div class="action-group">
+                            ${m.alarmId != null ? `<button class="button small" onclick="openEventDetail(${Number(m.alarmId)})">事件</button>` : ""}
+                            ${!done ? `<button class="button small" onclick="advanceDrone(${Number(m.id)})">推进</button>` : ""}
+                            ${onSite ? `<button class="button small" onclick="confirmDrone(${Number(m.id)}, true)">确认火点</button>` : ""}
+                        </div>
+                    </td>
+                </tr>`;
+        }).join("");
+    }
+
+    /* ==================== 巡护管理：生态回访 ==================== */
+    function assetTypeLabel(type) {
+        if (type === "ANCIENT_TREE") return "古树";
+        if (type === "WILDLIFE_HABITAT") return "栖息地";
+        return type || "--";
+    }
+
+    function followupStateLabel(state) {
+        const map = {
+            "PENDING": "待处理",
+            "IN_PROGRESS": "进行中",
+            "COMPLETED": "已完成"
+        };
+        return map[String(state || "").toUpperCase()] || state || "--";
+    }
+
+    function followupStateBadgeCls(state) {
+        const s = String(state || "").toUpperCase();
+        if (s === "COMPLETED") return "badge-green";
+        if (s === "IN_PROGRESS") return "badge-blue";
+        return "badge-yellow";
+    }
+
+    function followupStateBadge(state) {
+        return `<span class="badge ${followupStateBadgeCls(state)}">${followupStateLabel(state)}</span>`;
+    }
+
+    async function loadFollowups() {
+        const alarmId = document.getElementById("followupAlarmFilter").value.trim();
+        const state = document.getElementById("followupStateFilter").value;
+        const params = new URLSearchParams();
+        if (alarmId) params.set("alarmId", alarmId);
+        if (state) params.set("state", state);
+        const q = params.toString();
+        try {
+            const list = await api(`/api/admin/forest/followups${q ? "?" + q : ""}`);
+            forestState.followups = Array.isArray(list) ? list : [];
+            renderFollowups();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function renderFollowups() {
+        const body = document.getElementById("followupTable");
+        if (!body) return;
+        if (!forestState.followups.length) {
+            body.innerHTML = '<tr><td colspan="8" class="empty">暂无生态回访任务</td></tr>';
+            return;
+        }
+        body.innerHTML = forestState.followups.map(f => `
+            <tr>
+                <td>${escapeHtml(f.id)}</td>
+                <td>${escapeHtml(f.assetName || "--")}<br><span class="cell-sub">${escapeHtml(f.assetCode || "--")}</span></td>
+                <td>${assetTypeLabel(f.assetType)}</td>
+                <td>${escapeHtml(f.zoneName || "--")}</td>
+                <td>${followupStateBadge(f.state)}</td>
+                <td>${escapeHtml(f.handler || "--")}</td>
+                <td>${f.completedTime ? escapeHtml(f.completedTime) : escapeHtml(f.dueTime || "--")}</td>
+                <td>
+                    <div class="action-group">
+                        ${f.alarmId != null ? `<button class="button small" onclick="openEventDetail(${Number(f.alarmId)})">事件</button>` : ""}
+                        ${f.state === "PENDING" ? `<button class="button small" onclick="startFollowup(${Number(f.id)})">开始</button>` : ""}
+                        ${(f.state === "PENDING" || f.state === "IN_PROGRESS") ? `<button class="button small" onclick="completeFollowup(${Number(f.id)})">完成</button>` : ""}
+                    </div>
+                </td>
+            </tr>`).join("");
+    }
+
+    /* ==================== 巡护 / 管理账号（统一） ==================== */
+    function personnelZoneLabel(zoneId) {
+        if (zoneId == null) return "--";
+        const zone = forestState.zones.find(z => String(z.id) === String(zoneId));
+        return zone ? `${zone.zoneCode} · ${zone.zoneName}` : `分区 ${zoneId}`;
+    }
+
+    function personnelRoleLabel(u) {
+        if (!u) return "--";
+        if (u.role === "admin") return "管理员";
+        if (u.role === "resident") return (u.zoneId != null && Number(u.zoneId) > 0) ? "巡护员" : "居民";
+        return u.role || "--";
+    }
+
+    function togglePersonnelZone() {
+        const role = document.getElementById("personnelRole")?.value;
+        const zone = document.getElementById("personnelZone");
+        if (zone) zone.disabled = role !== "resident";
+    }
+
+    function populateZoneSelect(zoneId) {
+        const zone = document.getElementById(zoneId);
+        if (!zone) return;
+        zone.innerHTML = '<option value="">选择巡护区域…</option>'
+            + forestState.zones.map(z =>
+                `<option value="${Number(z.id)}">${escapeHtml(z.zoneCode)} · ${escapeHtml(z.zoneName)}</option>`
+            ).join("");
+    }
+
+    async function loadPersonnel() {
+        try {
+            if (!forestState.zones.length) {
+                try { forestState.zones = await api("/api/admin/forest/zones"); } catch (e) {}
+            }
+            populateZoneSelect("personnelZone");
+            populateZoneSelect("accZone");
+            togglePersonnelZone();
+            toggleAccZone();
+
+            const list = await api("/api/admin/users");
+            const users = Array.isArray(list) ? list : [];
+            const rows = users.map(u => `
+                <tr>
+                    <td>${escapeHtml(u.id)}</td>
+                    <td><b>${escapeHtml(u.username)}</b></td>
+                    <td>${escapeHtml(personnelRoleLabel(u))}</td>
+                    <td>${escapeHtml(personnelZoneLabel(u.zoneId))}</td>
+                    <td>${escapeHtml(u.phone || "--")}</td>
+                    <td>${escapeHtml(u.jobNum || "--")}</td>
+                    <td>
+                        <div class="action-group">
+                            <button class="button small danger" onclick="deletePersonnel(${Number(u.id)}, '${escapeHtml(String(u.username).replaceAll("'", "\\'"))}')">删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+
+            const personnelBody = document.getElementById("personnelTable");
+            if (personnelBody) personnelBody.innerHTML = rows || '<tr><td colspan="7" class="empty">暂无账号</td></tr>';
+            const accountsBody = document.getElementById("accountsTable");
+            if (accountsBody) accountsBody.innerHTML = rows || '<tr><td colspan="7" class="empty">暂无账号</td></tr>';
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    function toggleAccZone() {
+        const role = document.getElementById("accRole")?.value;
+        const zone = document.getElementById("accZone");
+        if (zone) zone.disabled = role !== "resident";
+    }
+
+    async function createPersonnel() {
+        const username = document.getElementById("personnelUsername").value.trim();
+        const password = document.getElementById("personnelPassword").value;
+        const role = document.getElementById("personnelRole").value;
+        const zoneId = document.getElementById("personnelZone").value;
+        const jobNum = document.getElementById("personnelJobNum").value.trim();
+        const phone = document.getElementById("personnelPhone").value.trim();
+        await doCreatePersonnel(username, password, role, zoneId, jobNum, phone, () => {
+            document.getElementById("personnelUsername").value = "";
+            document.getElementById("personnelPassword").value = "";
+            document.getElementById("personnelJobNum").value = "";
+            document.getElementById("personnelPhone").value = "";
+        });
+    }
+
+    async function createAcc() {
+        const username = document.getElementById("accUsername").value.trim();
+        const password = document.getElementById("accPassword").value;
+        const role = document.getElementById("accRole").value;
+        const zoneId = document.getElementById("accZone").value;
+        const jobNum = document.getElementById("accJobNum").value.trim();
+        const phone = document.getElementById("accPhone").value.trim();
+        await doCreatePersonnel(username, password, role, zoneId, jobNum, phone, () => {
+            document.getElementById("accUsername").value = "";
+            document.getElementById("accPassword").value = "";
+            document.getElementById("accJobNum").value = "";
+            document.getElementById("accPhone").value = "";
+        });
+    }
+
+    async function doCreatePersonnel(username, password, role, zoneId, jobNum, phone, reset) {
+        if (!username || !password) return showToast("用户名和密码不能为空", "error");
+
+        const body = { username, password, role };
+        if (role === "resident") {
+            if (!zoneId) return showToast("巡护员必须选择巡护区域", "error");
+            body.zoneId = Number(zoneId);
+        }
+        if (jobNum) body.jobNum = jobNum;
+        if (phone) body.phone = phone;
+
+        try {
+            const res = await api("/api/admin/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+            showToast(res.message || "账号创建成功", "success");
+            reset();
+            await loadPersonnel();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    async function deletePersonnel(id, username) {
+        const ok = await v5Confirm("删除账号", `确定删除账号「${username}」吗？相关设备绑定将解除，历史数据保留。`, "删除", "danger");
+        if (!ok) return;
+        try {
+            const res = await api(`/api/admin/users/${id}`, { method: "DELETE" });
+            showToast(res.message || "账号已删除", "success");
+            await loadPersonnel();
+        } catch (e) {
+            showToast(e.message, "error");
+        }
+    }
+
+    /* ==================== DEMO 模拟控制台 ==================== */
+    async function loadDemoPanel() {
+        try {
+            const [devices, scen] = await Promise.all([
+                api("/api/admin/devices?sourceType=DEMO"),
+                api("/api/test/scenarios")
+            ]);
+
+            const deviceSelect = document.getElementById("demoDeviceSelect");
+            const scenSelect = document.getElementById("demoScenarioSelect");
+            if (!deviceSelect || !scenSelect) return;
+
+            forestState.demoDevices = Array.isArray(devices) ? devices : [];
+
+            deviceSelect.innerHTML = forestState.demoDevices.map(d => {
+                const label = d.nodeName || d.nodeCode || `设备 ${d.deviceId}`;
+                return `<option value="${Number(d.deviceId)}">${escapeHtml(d.deviceId)} · ${escapeHtml(label)}</option>`;
+            }).join("") || '<option value="">无 DEMO 节点</option>';
+
+            const scenarios = (scen && Array.isArray(scen.scenarios)) ? scen.scenarios : [];
+            scenSelect.innerHTML = '<option value="">选择场景</option>'
+                + scenarios.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+        } catch (e) {
+            console.error("加载演示控制台失败", e);
+            showToast(e.message, "error");
+        }
+    }
+
+    async function triggerDemoScenario() {
+        const deviceSelect = document.getElementById("demoDeviceSelect");
+        const scenSelect = document.getElementById("demoScenarioSelect");
+        const fb = document.getElementById("demoFeedback");
+        if (!deviceSelect || !scenSelect || !fb) return;
+
+        const deviceId = deviceSelect.value;
+        const scenario = scenSelect.value;
+        if (!deviceId || !scenario) {
+            showToast("请先选择模拟节点与场景", "error");
+            return;
+        }
+
+        try {
+            const res = await api(`/api/test/scenario?deviceId=${encodeURIComponent(deviceId)}&scenario=${encodeURIComponent(scenario)}`);
+            const device = forestState.demoDevices.find(d => String(d.deviceId) === String(deviceId));
+            const loc = device && device.nodeName
+                ? `${device.nodeName}（${device.nodeCode || ""}）`
+                : `节点 ${deviceId}`;
+            fb.innerHTML = `<div class="demo-feedback-ok">已对 ${escapeHtml(loc)} 触发 <b>${escapeHtml(scenario)}</b> 场景。数据将逐步进入判定与事件链路生效。</div>`;
+            showToast(res.message || "场景已触发", "success");
+            loadOverview();
+        } catch (e) {
+            fb.innerHTML = `<div class="demo-feedback-err">${escapeHtml(e.message)}</div>`;
+            showToast(e.message, "error");
+        }
+    }
+
+    /* ==================== 通用徽标 ==================== */
+    function healthBadge(value) {
+        switch (value) {
+            case "NORMAL": return '<span class="badge badge-green">正常</span>';
+            case "STALE": return '<span class="badge badge-yellow">数据过期</span>';
+            case "SENSOR_FAULT": return '<span class="badge badge-purple">传感器异常</span>';
+            case "OFFLINE": return '<span class="badge badge-gray">设备离线</span>';
+            default: return '<span class="badge badge-gray">--</span>';
+        }
+    }
+
+    function cloudStateBadge(value) {
+        const s = String(value || "").toUpperCase();
+        const map = { "ALARM": ["badge-red", "报警"], "WARNING": ["badge-orange", "预警"], "NORMAL": ["badge-green", "正常"] };
+        const [cls, label] = map[s] || ["badge-gray", "--"];
+        return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    function disposalBadge(state) {
+        const s = String(state || "").toUpperCase();
+        const map = {
+            "NEW": ["badge-gray", "待确认"],
+            "ACKNOWLEDGED": ["badge-blue", "已确认"],
+            "ON_SITE": ["badge-yellow", "现场处理中"],
+            "RESOLVED": ["badge-purple", "已填处置结果"],
+            "CLOSED": ["badge-green", "已关闭"]
+        };
+        const [cls, label] = map[s] || ["badge-gray", "--"];
+        return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    /* ==================== 启动 ==================== */
+    async function startAdminPage() {
+        const user = await ensureAdmin();
+        if (!user) return;
+
+        await loadZones();
+        await Promise.all([
+            loadOverview(),
+            loadNodes()
+        ]);
+
+        // 总览（任务队列 / 地图 / 气象）每5秒更新；管理表格按用户操作刷新。
+        setInterval(loadOverview, 5000);
+    }
+
+    startAdminPage();
+</script>
+</body>
+</html>

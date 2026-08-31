@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>森林公园火险监测 · 登录</title>
+    <link rel="stylesheet" href="/css/v5.css">
+</head>
+<body>
+<div class="noise"></div>
+
+<main class="login-shell">
+    <section class="login-panel reveal">
+        <div class="login-wrap">
+            <div class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2c2 3 4.2 5.2 4.2 8.1A4.2 4.2 0 0 1 12 14.3a4.2 4.2 0 0 1-4.2-4.2C7.8 7.4 9.5 5 12 2Z" stroke="currentColor" stroke-width="1.7"/>
+                    <path d="M12 12c1.7 1.7 2.6 3.2 2.6 4.7A2.6 2.6 0 0 1 12 19.3a2.6 2.6 0 0 1-2.6-2.6c0-1.4.9-3 2.6-4.7Z" fill="currentColor"/>
+                </svg>
+            </div>
+
+            <div class="small-caps">FOREST FIRE GUARD · RULE-BASED</div>
+            <h1 class="login-title">火险，防在<br>星火之前。</h1>
+            <p class="login-sub">森林火险监测节点、无人机复核与巡护协同，用透明规则守护森林公园生态资源。所有评分均为规则计算，不涉及 AI。</p>
+
+            <form id="loginForm" class="form-view active">
+                <div class="field">
+                    <label for="loginUsername">账号</label>
+                    <input id="loginUsername" class="input" autocomplete="username" placeholder="请输入用户名" required>
+                </div>
+
+                <div class="field">
+                    <label for="loginPassword">密码</label>
+                    <input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+                </div>
+
+                <label class="checkline">
+                    <input id="rememberUsername" type="checkbox" checked>
+                    记住账号 <span style="color:#5e6672">· 不保存密码</span>
+                </label>
+
+                <button id="loginButton" class="primary" type="submit">进入系统</button>
+                <div id="loginMessage" class="form-message"></div>
+                <div class="tip" style="margin-top:14px;line-height:1.7">管理员 → 指挥台（admin）<br>巡护员 → 移动巡护端（patrol / 123456）</div>
+            </form>
+        </div>
+    </section>
+
+    <section class="visual-panel reveal" data-delay="120">
+        <div class="aurora a"></div>
+        <div class="aurora b"></div>
+        <div class="aurora c"></div>
+        <div class="visual-grid"></div>
+
+        <div class="orbit-wrap">
+            <div class="orbit"><i class="dot d1"></i><i class="dot d2"></i><i class="dot d3"></i></div>
+            <div class="orbit-secondary"></div>
+            <div class="device-core">
+                <strong>72</strong>
+                <small>risk · rule</small>
+            </div>
+        </div>
+
+        <div class="visual-copy">
+            <div class="small-caps" style="color:rgba(198,218,239,.32)">Monitor. Verify. Protect.</div>
+            <h2>实时感知，<br>无人机复核，巡护兜底。</h2>
+            <p>森林监测节点持续感知火险，无人机到场复核，巡护员现场确认。透明规则驱动，真实危险状态始终拥有最高优先级。</p>
+        </div>
+    </section>
+</main>
+
+<script src="/js/auth.js"></script>
+<script src="/js/v5-motion.js"></script>
+<script>
+    SmokeAuth.clearSession();
+
+    const loginForm = document.getElementById('loginForm');
+
+    const savedUsername = localStorage.getItem(SmokeAuth.SAVED_USERNAME_KEY);
+    if (savedUsername) {
+        document.getElementById('loginUsername').value = savedUsername;
+        document.getElementById('loginPassword').focus();
+    } else {
+        document.getElementById('loginUsername').focus();
+    }
+
+    function setMessage(id, text, type = '') {
+        const el = document.getElementById(id);
+        el.textContent = text || '';
+        el.className = `form-message ${type}`;
+    }
+
+    async function parseError(response, fallback) {
+        try {
+            const data = await response.json();
+            return data?.message || fallback;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    loginForm.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const remember = document.getElementById('rememberUsername').checked;
+        const button = document.getElementById('loginButton');
+
+        setMessage('loginMessage', '');
+        button.disabled = true;
+        button.textContent = '正在验证身份…';
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+
+            if (!response.ok) {
+                throw new Error(await parseError(response, '用户名或密码错误'));
+            }
+
+            const loginData = await response.json();
+            if (!loginData?.token) throw new Error('服务器未返回登录凭证');
+
+            sessionStorage.setItem(SmokeAuth.TOKEN_KEY, loginData.token);
+
+            const userResponse = await fetch('/api/auth/me');
+            if (!userResponse.ok) throw new Error('获取用户身份失败');
+
+            const user = await userResponse.json();
+            SmokeAuth.saveLogin(loginData.token, user);
+
+            if (remember) {
+                localStorage.setItem(SmokeAuth.SAVED_USERNAME_KEY, username);
+            } else {
+                localStorage.removeItem(SmokeAuth.SAVED_USERNAME_KEY);
+            }
+
+            document.getElementById('loginPassword').value = '';
+            setMessage('loginMessage', '登录成功，正在进入系统…', 'success');
+
+            window.setTimeout(() => {
+                window.location.replace(user.role === 'admin' ? '/admin.html' : '/index.html');
+            }, 320);
+        } catch (error) {
+            SmokeAuth.clearSession();
+            setMessage('loginMessage', error.message || '登录失败', 'error');
+            button.disabled = false;
+            button.textContent = '进入系统';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw -q test)",
+      "Bash(grep -v \"^\\\\s*\\\\*\\\\|/\\\\*\\\\|//\")",
+      "Bash(./mvnw -q clean test)",
+      "Bash(grep -h \"Tests run\" target/surefire-reports/*.txt)",
+      "Bash(ls target/*.jar)",
+      "Bash(grep -rn \"setScenario\\\\|triggerDemo\\\\|SCENARIO_\" src/main/java/com/example/demo/controller/*.java)",
+      "Bash(./mvnw -q compile)",
+      "Bash(node -e ':*)",
+      "Bash(ls target/surefire-reports/*.txt)",
+      "Bash(cat target/surefire-reports/*.txt)",
+      "Bash(grep -E \"^Tests run\" target/surefire-reports/*.txt)",
+      "Bash(wc -l src/main/resources/static/admin.html src/main/resources/static/index.html src/main/resources/static/login.html src/main/resources/static/css/v5.css src/main/resources/static/js/auth.js src/main/resources/static/js/v5-motion.js src/main/resources/static/technical.html src/main/java/com/example/demo/controller/*.java src/main/java/com/example/demo/service/*.java src/main/java/com/example/demo/task/*.java src/main/java/com/example/demo/iot/*.java)",
+      "Bash(./mvnw -q -o compile)",
+      "Bash(./mvnw -o test -Dtest=ForestDatabaseInitializerTest)",
+      "Bash(./mvnw -o test -Dtest=ForestScoringServicesTest,ForestDatabaseInitializerTest)",
+      "Bash(./mvnw -o test)",
+      "Bash(./mvnw -o test -Dtest=AlarmDisposalServiceTest)",
+      "Bash(./mvnw -o test -Dtest=DroneMissionServiceTest,EcologicalFollowupServiceTest,AlarmDisposalServiceTest)",
+      "Bash(./mvnw -o compile -q)",
+      "Bash(./mvnw -o compile)",
+      "Bash(grep -rn \"sys_user\" src/main/resources/ --include=*.yml --include=*.yaml --include=*.properties)",
+      "Bash(python -)",
+      "Bash(./mvnw -o test -q)",
+      "Bash(grep -h \"Tests run:\" target/surefire-reports/*.txt)",
+      "Bash(ls -1 src/test/java/com/example/demo/**/*.java)",
+      "Bash(./mvnw -o test -q -Dtest='AlarmServiceForestTest,DataScopeServicePatrolTest,PatrolControllerTest,AlarmExperienceServicePatrolFeedbackTest')"
+    ]
+  }
+}

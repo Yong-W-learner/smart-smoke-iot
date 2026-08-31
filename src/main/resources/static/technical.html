@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>智慧烟感 · 技术架构</title>
+    <link rel="stylesheet" href="/css/v5.css">
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="tech-shell">
+    <header class="topbar glass reveal">
+        <div class="brand-mini">
+            <div class="glyph">S</div>
+            <span>Smart Smoke · Technology</span>
+        </div>
+        <div class="top-actions">
+            <a id="backLink" class="ghost-btn" href="/index.html">返回系统</a>
+            <button class="ghost-btn" onclick="SmokeAuth.logout()">退出登录</button>
+            <div id="techAvatar" class="avatar">S</div>
+        </div>
+    </header>
+
+    <section class="tech-hero reveal tilt" data-delay="60">
+        <div class="small-caps">EDGE · CLOUD · HEALTH</div>
+        <h1>把安全判断，<br>放在离危险最近的地方。</h1>
+        <p>系统采用 BearPi 边缘端与 Spring Boot 云端协同架构。边缘端承担快速烟雾判断与本地强制报警，云端负责时间序列分析、动态误报抑制、设备健康监测、用户权限和远程控制。即使网络异常，真实危险状态依旧能够在设备端独立触发报警。</p>
+
+        <div class="flow">
+            <div class="flow-line">
+                <div class="flow-node">MQ-2<br><span style="color:#69717e">烟雾采集</span></div>
+                <div class="flow-node">BearPi<br><span style="color:#69717e">边缘判断</span></div>
+                <div class="flow-node">Huawei IoTDA<br><span style="color:#69717e">设备云连接</span></div>
+                <div class="flow-node">Spring Boot<br><span style="color:#69717e">云端决策</span></div>
+                <div class="flow-node">Web Console<br><span style="color:#69717e">学生 / 管理员</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="tech-grid">
+        <article class="tech-card reveal" data-delay="110">
+            <div class="tech-index">01 · EDGE DECISION</div>
+            <h3>端侧快速判断</h3>
+            <p>以动态背景基线为参照，根据烟雾倍率和硬阈值执行 NORMAL、PREWARNING、ALARM 三态判断。真实 ALARM 拥有最高执行优先级。</p>
+        </article>
+
+        <article class="tech-card reveal" data-delay="150">
+            <div class="tech-index">02 · FALSE ALARM SUPPRESSION</div>
+            <h3>动态误报抑制</h3>
+            <p>云端使用稳定背景基线、短窗口连续异常次数和恢复条件进行二次判断，避免单点抖动直接升级为烟雾报警。</p>
+        </article>
+
+        <article class="tech-card reveal" data-delay="190">
+            <div class="tech-index">03 · DEVICE HEALTH</div>
+            <h3>设备健康监测</h3>
+            <p>持续区分 NORMAL、STALE、OFFLINE 与 SENSOR_FAULT。系统不仅判断环境是否安全，也判断“当前读数是否值得信任”。</p>
+        </article>
+
+        <article class="tech-card reveal" data-delay="230">
+            <div class="tech-index">04 · SAFETY PRIORITY</div>
+            <h3>安全优先控制</h3>
+            <p>管理员可以远程控制 LED 与蜂鸣器，但真实烟雾报警状态会强制接管执行器，防止手动关闭覆盖安全底线。</p>
+        </article>
+
+        <article class="tech-card reveal" data-delay="270">
+            <div class="tech-index">05 · DATA SCOPE</div>
+            <h3>房间级数据隔离</h3>
+            <p>学生只能查看本人或本人寝室绑定设备的监测数据与告警；管理员拥有全局管理权限，权限校验在后端执行。</p>
+        </article>
+
+        <article class="tech-card reveal" data-delay="310">
+            <div class="tech-index">06 · CLOUD CONTROL</div>
+            <h3>端云闭环</h3>
+            <p>设备上行属性进入云端与数据库，管理员下行命令经 IoTDA 到达 BearPi，实现采集、传输、处理、控制的完整闭环。</p>
+        </article>
+    </section>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/v5-motion.js"></script>
+<script>
+    async function startTechnical() {
+        if (!SmokeAuth.requireLogin()) return;
+        let user = SmokeAuth.getUser();
+
+        if (!user) {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (!response.ok) return;
+                user = await response.json();
+                SmokeAuth.saveUser(user);
+            } catch (e) {
+                return;
+            }
+        }
+
+        document.getElementById('techAvatar').textContent = (user.username || 'S').slice(0,1).toUpperCase();
+        document.getElementById('backLink').href = user.role === 'admin' ? '/admin.html' : '/index.html';
+        document.getElementById('backLink').textContent = user.role === 'admin' ? '返回管理中心' : '返回监控主页';
+    }
+
+    startTechnical();
+</script>
+</body>
+</html>
