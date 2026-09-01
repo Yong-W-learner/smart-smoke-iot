@@ -10,6 +10,7 @@ import com.example.demo.entity.DroneMission;
 import com.example.demo.entity.EcologicalFollowup;
 import com.example.demo.entity.EnvironmentRecord;
 import com.example.demo.entity.ForestZone;
+import com.example.demo.entity.SmokeRecord;
 import com.example.demo.entity.WildlifeHabitat;
 import com.example.demo.mapper.AlarmEventLogMapper;
 import com.example.demo.mapper.AlarmMapper;
@@ -19,6 +20,7 @@ import com.example.demo.mapper.DeviceMapper;
 import com.example.demo.mapper.DroneMissionMapper;
 import com.example.demo.mapper.EnvironmentRecordMapper;
 import com.example.demo.mapper.EcologicalFollowupMapper;
+import com.example.demo.mapper.SmokeRecordMapper;
 import com.example.demo.mapper.WildlifeHabitatMapper;
 import com.example.demo.service.AlarmService;
 import com.example.demo.service.DataScopeService;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -72,6 +75,7 @@ public class AdminForestController {
     private final WildlifeHabitatMapper wildlifeHabitatMapper;
     private final EnvironmentRecordMapper environmentRecordMapper;
     private final EcologicalFollowupMapper ecologicalFollowupMapper;
+    private final SmokeRecordMapper smokeRecordMapper;
 
     private final DroneMissionService droneMissionService;
     private final EcologicalFollowupService ecologicalFollowupService;
@@ -90,6 +94,7 @@ public class AdminForestController {
                                  WildlifeHabitatMapper wildlifeHabitatMapper,
                                  EnvironmentRecordMapper environmentRecordMapper,
                                  EcologicalFollowupMapper ecologicalFollowupMapper,
+                                 SmokeRecordMapper smokeRecordMapper,
                                  DroneMissionService droneMissionService,
                                  EcologicalFollowupService ecologicalFollowupService,
                                  FireWeatherService fireWeatherService,
@@ -106,6 +111,7 @@ public class AdminForestController {
         this.wildlifeHabitatMapper = wildlifeHabitatMapper;
         this.environmentRecordMapper = environmentRecordMapper;
         this.ecologicalFollowupMapper = ecologicalFollowupMapper;
+        this.smokeRecordMapper = smokeRecordMapper;
         this.droneMissionService = droneMissionService;
         this.ecologicalFollowupService = ecologicalFollowupService;
         this.fireWeatherService = fireWeatherService;
@@ -520,6 +526,121 @@ public class AdminForestController {
                 (List<Map<String, Object>>) map.get("nodes");
 
         return nodes;
+    }
+
+    /**
+     * 节点详情：基础档案 + 最新烟雾判定 + 设备健康指数（透明规则）。
+     */
+    @GetMapping("/nodes/{id}")
+    public Map<String, Object> nodeDetail(@PathVariable Long id) {
+
+        Device device = deviceMapper.selectById(id);
+
+        if (device == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "监测节点不存在"
+            );
+        }
+
+        SmokeRecord latest = smokeRecordMapper.selectOne(
+                new LambdaQueryWrapper<SmokeRecord>()
+                        .eq(SmokeRecord::getDeviceId, id)
+                        .orderByDesc(SmokeRecord::getCollectTime)
+                        .last("LIMIT 1")
+        );
+
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("deviceId", device.getDeviceId());
+        info.put("nodeCode", device.getNodeCode());
+        info.put("nodeName", device.getNodeName());
+        info.put("zoneId", device.getZoneId());
+        info.put("zoneName",
+                forestZoneService.zoneNameById(device.getZoneId()));
+        info.put("sourceType", device.getSourceType());
+        info.put("iotDeviceId", device.getIotDeviceId());
+        info.put("status", device.getStatus());
+        info.put("healthStatus", device.getHealthStatus());
+        info.put("lastReportTime", device.getLastReportTime());
+        info.put("consecutiveFailures", device.getConsecutiveFailures());
+        info.put("mapX", device.getMapX());
+        info.put("mapY", device.getMapY());
+        info.put("latitude", device.getLatitude());
+        info.put("longitude", device.getLongitude());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("device", info);
+        result.put("latestRecord", latest);
+        result.put("insight", deviceInsight(device));
+
+        return result;
+    }
+
+    /**
+     * 设备健康指数（透明规则）：
+     * 连接×0.35 + 传感器×0.40 + 新鲜度×0.25 − 连续失败罚分，封顶 0-100。
+     */
+    private Map<String, Object> deviceInsight(Device device) {
+
+        boolean online = Integer.valueOf(1).equals(device.getStatus());
+        String health = device.getHealthStatus() == null
+                ? "UNKNOWN" : device.getHealthStatus();
+
+        long ageSeconds = device.getLastReportTime() == null
+                ? Long.MAX_VALUE
+                : Math.max(0, Duration.between(
+                        device.getLastReportTime(),
+                        LocalDateTime.now()).getSeconds());
+
+        int networkScore = online ? 100 : 30;
+        int sensorScore = "SENSOR_FAULT".equalsIgnoreCase(health) ? 15 : 100;
+
+        int freshnessScore;
+        if (ageSeconds <= 10) {
+            freshnessScore = 100;
+        } else if (ageSeconds <= 30) {
+            freshnessScore = 82;
+        } else if (ageSeconds <= 120) {
+            freshnessScore = 55;
+        } else {
+            freshnessScore = 25;
+        }
+
+        if ("STALE".equalsIgnoreCase(health)) {
+            freshnessScore = Math.min(freshnessScore, 55);
+        }
+        if ("OFFLINE".equalsIgnoreCase(health)) {
+            networkScore = Math.min(networkScore, 25);
+        }
+
+        int failures = device.getConsecutiveFailures() == null
+                ? 0 : device.getConsecutiveFailures();
+        int failurePenalty = Math.min(24, Math.max(0, failures) * 8);
+
+        int overall = (int) Math.round(
+                networkScore * 0.35 + sensorScore * 0.40 + freshnessScore * 0.25)
+                - failurePenalty;
+        overall = Math.max(0, Math.min(100, overall));
+
+        String label = overall >= 90 ? "Excellent"
+                : overall >= 75 ? "Healthy"
+                : overall >= 55 ? "Attention"
+                : "Needs inspection";
+
+        Map<String, Object> components = new LinkedHashMap<>();
+        components.put("network", networkScore);
+        components.put("sensor", sensorScore);
+        components.put("freshness", freshnessScore);
+        components.put("consecutiveFailures", failures);
+        components.put("lastReportAgeSeconds",
+                ageSeconds == Long.MAX_VALUE ? null : ageSeconds);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("score", overall);
+        result.put("label", label);
+        result.put("components", components);
+
+        return result;
     }
 
 

@@ -811,12 +811,46 @@ public class ForestDatabaseInitializer {
                 deviceId,
                 zoneId,
                 nodeCode,
-                zoneNameFor(zoneId) + "·" + nodeCode,
+                nodeNameFor(deviceId, zoneId, row, col),
                 BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
                 BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP),
                 mapX,
                 mapY
         );
+    }
+
+    /**
+     * 节点名称（不重复分区名 / 节点编号，节点编号为唯一编码）：
+     * 真实节点用点位描述命名；DEMO 节点按分区特征 + 网格定位命名，
+     * 例如"古松林A2监测点"。
+     */
+    static String nodeNameFor(long deviceId, int zoneId, int row, int col) {
+
+        if (deviceId == REAL_NODE_DEVICE_ID) {
+            return "北部古松周边监测点";
+        }
+
+        return zoneFeatureFor(zoneId)
+                + ("ABCDE".charAt(row))
+                + (col + 1)
+                + "监测点";
+    }
+
+    /**
+     * 分区特征词：古松林 / 通道林缘 / 保育林带 / 涵养溪谷。
+     */
+    static String zoneFeatureFor(int zoneId) {
+
+        switch (zoneId) {
+            case 1: return "古松林";
+            case 2: return "通道林缘";
+            case 3: return "保育林带";
+            case 4: return "涵养溪谷";
+            default:
+                throw new IllegalArgumentException(
+                        "未知森林分区ID：" + zoneId
+                );
+        }
     }
 
     private static double round1(double value) {

@@ -133,6 +133,8 @@ public class ForestMapService {
             item.put("longitude", device.getLongitude());
             item.put("status", device.getStatus());
             item.put("healthStatus", device.getHealthStatus());
+            item.put("sourceType", device.getSourceType());
+            item.put("lastReportTime", device.getLastReportTime());
             item.put("cloudState",
                     latest == null ? null : latest.getCloudState());
             item.put("edgeState",

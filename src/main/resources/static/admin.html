@@ -188,6 +188,43 @@
         .personnel-toolbar { flex-wrap: wrap; gap: 8px; }
         .personnel-form { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
         .personnel-form .control { width: auto; flex: 0 1 auto; min-width: 130px; }
+
+        /* 产品语义收口 */
+        .headline-actions { display: flex; align-items: center; gap: 8px; }
+        .task-type-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; background: rgba(101,199,255,.12); color: #65c7ff; letter-spacing: .03em; }
+        .node-unconfirm { color: #8a91a0; opacity: .85; }
+        .muted-text { color: #77808f; font-weight: 600; }
+        .ok-text { color: #56df94; }
+        .bad-text { color: #ff7a76; }
+
+        /* 节点详情 */
+        .nd-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        @media (max-width: 720px) { .nd-grid { grid-template-columns: 1fr; } }
+        .nd-block { border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; background: rgba(255,255,255,.02); }
+        .nd-block-title { font-size: 11px; font-weight: 800; color: #8fa2b5; letter-spacing: .05em; margin-bottom: 8px; }
+        .nd-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed rgba(255,255,255,.05); }
+        .nd-row:last-child { border-bottom: 0; }
+        .nd-row span { color: #77808f; flex: 0 0 auto; }
+        .nd-row b { color: #dfe7f2; font-weight: 650; text-align: right; word-break: break-all; }
+        .dhi-score { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+        .dhi-score b { font-size: 30px; font-weight: 800; color: #65c7ff; }
+        .dhi-score span { font-size: 12px; color: #8fa2b5; }
+        .drone-demo-hint { margin-top: 12px; font-size: 11px; color: #77808f; background: rgba(255,255,255,.025); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; }
+
+        /* 生态保护等级徽标 */
+        .prot-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .03em; }
+        .prot-badge.prot-1 { background: rgba(255,98,95,.16); color: #ff7a76; }
+        .prot-badge.prot-2 { background: rgba(255,182,87,.14); color: #ffbd68; }
+        .prot-badge.prot-3 { background: rgba(127,211,255,.12); color: #7fd3ff; }
+
+        /* 展开地图 */
+        .map-dialog { width: min(94vw, 1240px); }
+        .map-dialog-body { padding: 14px; }
+        .map-dialog-body svg { width: 100%; height: auto; display: block; }
+
+        /* 演示工具：无人机推进 */
+        .demo-drone-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; background: rgba(255,255,255,.02); }
+        .demo-drone-tip { font-size: 11px; color: #77808f; }
     </style>
 </head>
 
@@ -244,7 +281,7 @@
                 <button class="fm-stat fs-alarm" onclick="statGo('events')"><span class="fs-label">活动火情</span><b id="statActiveAlarm" class="fs-value">--</b><span class="fs-sub">环境未恢复</span></button>
                 <button class="fm-stat fs-offline" onclick="statGo('nodes')"><span class="fs-label">设备异常</span><b id="statAbnormalCount" class="fs-value">--</b><span class="fs-sub">离线 / 传感器故障</span></button>
                 <button class="fm-stat fs-sensor" onclick="statGo('resources')"><span class="fs-label">受威胁生态资源</span><b id="statThreatCount" class="fs-value">--</b><span class="fs-sub">事件影响去重</span></button>
-                <button class="fm-stat fs-stale" onclick="statGo('events')"><span class="fs-label">待处置事件</span><b id="statPendingCount" class="fs-value">--</b><span class="fs-sub">待无人机复核</span></button>
+                <button class="fm-stat fs-stale" onclick="statGo('overview')"><span class="fs-label">待办任务</span><b id="statPendingCount" class="fs-value">--</b><span class="fs-sub">统一运维待办队列</span></button>
             </section>
 
             <section class="v51-workbench reveal" data-delay="120">
@@ -254,7 +291,7 @@
                         <div>
                             <div class="small-caps">TO-DO · LIVE</div>
                             <h3>当前需要处理</h3>
-                            <p class="panel-sub">活动火险事件按综合紧急度排序，直接在此处置。</p>
+                            <p class="panel-sub">统一运维待办队列：活动火险 → 待完成处置 → 设备异常 → 生态回访。</p>
                         </div>
                         <span class="status-badge" id="taskCountBadge">0</span>
                     </div>
@@ -271,7 +308,10 @@
                                 <div class="small-caps">PARK SITUATION</div>
                                 <h3>森林公园态势</h3>
                             </div>
-                            <span class="status-badge">分区 · 节点 · 资源 · 事件</span>
+                            <div class="headline-actions">
+                                <span class="status-badge">分区 · 节点 · 资源 · 事件</span>
+                                <button class="button small" onclick="openMapDialog()">展开地图</button>
+                            </div>
                         </div>
                         <div class="fm-layers">
                             <label class="fm-layer"><input type="checkbox" id="layerNodes"> 监测节点（全部）</label>
@@ -341,14 +381,15 @@
                     <table>
                         <thead>
                         <tr>
-                            <th>设备ID</th>
+                            <th>节点ID</th>
                             <th>节点</th>
                             <th>分区</th>
+                            <th>类型</th>
                             <th>连接</th>
                             <th>健康</th>
-                            <th>云端状态</th>
-                            <th>风险评分</th>
-                            <th>地图坐标</th>
+                            <th>烟雾状态</th>
+                            <th>最后上报</th>
+                            <th>操作</th>
                         </tr>
                         </thead>
                         <tbody id="nodeTable"></tbody>
@@ -412,7 +453,7 @@
                 <div id="sub-drones" class="sub-view">
                     <div class="section-head">
                         <div>
-                            <h2 style="margin:0;font-size:16px">无人机巡航任务</h2>
+                            <h2 style="margin:0;font-size:16px">无人机巡航任务 <span class="badge badge-purple" style="margin-left:6px;vertical-align:2px">模拟无人机</span></h2>
                             <div class="tip">火点复核任务状态机：PLANNED → DISPATCHED → EN_ROUTE → ON_SITE → RETURNED → COMPLETED。</div>
                         </div>
                         <button class="button small" onclick="loadDrones()">刷新任务</button>
@@ -543,6 +584,13 @@
 
                 <div id="demoFeedback" class="demo-feedback"></div>
 
+                <div class="demo-drone-bar">
+                    <select id="demoMissionSelect" class="control"><option value="">选择无人机任务…</option></select>
+                    <button class="button small" onclick="demoAdvanceDrone()">推进状态</button>
+                    <button class="button small" onclick="demoConfirmFire()">确认火点</button>
+                    <span class="demo-drone-tip">模拟无人机 · 仅演示链路推进，不构成真实无人机能力。</span>
+                </div>
+
                 <div class="demo-guide">
                     <div class="demo-guide-row"><span class="dg-scen">NORMAL</span><span class="dg-desc">正常环境，浓度在小幅波动，所有指标正常。</span></div>
                     <div class="demo-guide-row"><span class="dg-scen">SHORT_SPIKE</span><span class="dg-desc">短时尖峰：快速升高后回落，自动回到 NORMAL。</span></div>
@@ -639,6 +687,49 @@
             </div>
             <div class="modal-actions">
                 <button type="button" class="button" onclick="closeDialog('treeDetailDialog')">关闭</button>
+            </div>
+        </dialog>
+
+        <!-- ==================== 节点详情弹窗 ==================== -->
+        <dialog id="nodeDetailDialog">
+            <div class="modal-head">
+                <h3 id="nodeDetailTitle">监测节点详情</h3>
+                <button class="modal-close" onclick="closeDialog('nodeDetailDialog')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="nodeDetailBody" class="detail-loading">加载中…</div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button" onclick="closeDialog('nodeDetailDialog')">关闭</button>
+            </div>
+        </dialog>
+
+        <!-- ==================== 无人机任务详情弹窗 ==================== -->
+        <dialog id="droneDetailDialog">
+            <div class="modal-head">
+                <h3 id="droneDetailTitle">无人机任务详情</h3>
+                <button class="modal-close" onclick="closeDialog('droneDetailDialog')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="droneDetailBody" class="detail-loading">加载中…</div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button" onclick="closeDialog('droneDetailDialog')">关闭</button>
+            </div>
+        </dialog>
+
+        <!-- ==================== 展开地图弹窗 ==================== -->
+        <dialog id="mapDialog" class="map-dialog">
+            <div class="modal-head">
+                <h3>森林公园态势 · 展开地图</h3>
+                <button class="modal-close" onclick="closeDialog('mapDialog')">×</button>
+            </div>
+            <div class="modal-body map-dialog-body">
+                <svg id="forestSvgLarge" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet" role="img" aria-label="森林公园态势大图"></svg>
+                <div id="fmLegendLarge" class="fm-legend"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button" onclick="closeDialog('mapDialog')">关闭</button>
             </div>
         </dialog>
 
@@ -882,7 +973,7 @@
         if (badge) badge.innerText = o.pendingTaskCount != null ? String(o.pendingTaskCount) : "0";
 
         renderForestMap(forestState.map);
-        renderTaskQueue(o.topEvents || []);
+        renderTaskQueue(o.taskQueue || o.topEvents || []);
         renderZoneWeather(o.zoneWeather || []);
     }
 
@@ -895,36 +986,113 @@
         return "ev-offline";
     }
 
-    function renderTaskQueue(events) {
+    function renderTaskQueue(tasks) {
         const root = document.getElementById("taskQueue");
         if (!root) return;
-        if (!events.length) {
-            root.innerHTML = '<div class="task-empty">当前没有需要处置的活动事件，森林态势平稳。</div>';
+        if (!tasks || !tasks.length) {
+            root.innerHTML = '<div class="task-empty">当前没有需要处理的待办任务，森林态势平稳。</div>';
             return;
         }
-        root.innerHTML = events.map((e, idx) => {
-            const hasDrone = Integer(e.droneConfirmed) === 1;
-            return `
-                <article class="dorm-event-item ${evBorderClass(e.priorityLevel)}">
-                    <div class="ev-rank">${idx + 1}</div>
-                    <div class="ev-main">
-                        <div class="ev-title">
-                            <b>${escapeHtml(e.zoneName || "未知分区")} · ${escapeHtml(e.nodeCode || "节点")}</b>
-                            <span class="prio-chip ${prioChipClass(e.priorityLevel)}">${escapeHtml(e.priorityLevel || "--")} ${fmt(e.priorityScore)}</span>
-                        </div>
-                        <div class="ev-meta">
-                            <span class="ev-duration">${escapeHtml(e.durationText || "--")}</span>
-                            ${disposalBadge(e.disposalState)}
-                            ${hasDrone ? '<span class="badge badge-green">已确认火点</span>' : '<span class="ev-pending-disp">待无人机复核</span>'}
-                        </div>
-                        <div class="ev-summary">${escapeHtml(e.ecoSummary || "附近无命中分档的生态资源")}</div>
-                    </div>
-                    <div class="ev-actions">
-                        <button class="button small" onclick="openEventDetail(${Number(e.id)})">处置 / 详情</button>
-                        ${!hasDrone ? `<button class="button small" onclick="dispatchDrone(${Number(e.id)})">派发无人机</button>` : ""}
-                    </div>
-                </article>`;
+        root.innerHTML = tasks.map((e, idx) => {
+            const t = String(e.taskType || "").toUpperCase();
+            if (t === "FIRE_ACTIVE" || t === "FIRE_DISPOSAL") return fireTaskItem(e, idx);
+            if (t === "FOLLOWUP") return followupTaskItem(e, idx);
+            if (!t) return fireTaskItem(e, idx); // 兼容未重启前旧接口的 topEvents
+            return deviceTaskItem(e, idx);
         }).join("");
+    }
+
+    function fireTaskItem(e, idx) {
+        const hasDrone = Integer(e.droneConfirmed) === 1;
+        return `
+            <article class="dorm-event-item ${evBorderClass(e.priorityLevel)}">
+                <div class="ev-rank">${idx + 1}</div>
+                <div class="ev-main">
+                    <div class="ev-title">
+                        <b>${escapeHtml(e.zoneName || "未知分区")} · ${escapeHtml(e.nodeCode || "节点")}</b>
+                        <span class="prio-chip ${prioChipClass(e.priorityLevel)}">${escapeHtml(e.priorityLevel || "--")} ${fmt(e.priorityScore)}</span>
+                    </div>
+                    <div class="ev-meta">
+                        <span class="task-type-chip">${escapeHtml(e.typeLabel || "活动火险")}</span>
+                        <span class="ev-duration">${escapeHtml(e.durationText || "--")}</span>
+                        ${disposalBadge(e.disposalState)}
+                        ${hasDrone ? '<span class="badge badge-green">已确认火点</span>' : '<span class="ev-pending-disp">待无人机复核</span>'}
+                    </div>
+                    <div class="ev-summary">${escapeHtml(e.ecoSummary || "附近无命中分档的生态资源")}</div>
+                </div>
+                <div class="ev-actions">
+                    <button class="button small" onclick="openEventDetail(${Number(e.id)})">处置 / 详情</button>
+                    ${e.taskType !== "FIRE_DISPOSAL" && !hasDrone ? `<button class="button small" onclick="dispatchDrone(${Number(e.id)})">派发无人机</button>` : ""}
+                </div>
+            </article>`;
+    }
+
+    function deviceTaskItem(e, idx) {
+        const cls = e.taskType === "SENSOR_FAULT" ? "ev-warning"
+            : e.taskType === "OFFLINE" ? "ev-offline" : "ev-stale";
+        return `
+            <article class="dorm-event-item ${cls}">
+                <div class="ev-rank">${idx + 1}</div>
+                <div class="ev-main">
+                    <div class="ev-title">
+                        <b>${escapeHtml(e.nodeName || e.nodeCode || "监测节点")}</b>
+                        <span class="badge badge-gray">${escapeHtml(e.typeLabel || "--")}</span>
+                    </div>
+                    <div class="ev-meta">
+                        <span>${escapeHtml(e.zoneName || "--")}</span>
+                        ${healthBadge(e.healthStatus)}
+                        <span class="ev-duration">最后上报 ${escapeHtml(e.lastReportTime || "--")}</span>
+                    </div>
+                    <div class="ev-summary">${escapeHtml(e.nodeCode || "")} · 最后烟雾判定：${cloudStateLabel(e.cloudState)} · 当前实时环境状态不可确认</div>
+                </div>
+                <div class="ev-actions">
+                    <button class="button small" onclick="openNodeDetail(${Number(e.deviceId)})">查看节点</button>
+                </div>
+            </article>`;
+    }
+
+    function followupTaskItem(e, idx) {
+        return `
+            <article class="dorm-event-item ev-stale">
+                <div class="ev-rank">${idx + 1}</div>
+                <div class="ev-main">
+                    <div class="ev-title">
+                        <b>${escapeHtml(e.assetName || "生态资源")}</b>
+                        <span class="badge badge-gray">${escapeHtml(e.typeLabel || "待生态回访")}</span>
+                    </div>
+                    <div class="ev-meta">
+                        <span>${escapeHtml(e.zoneName || "--")}</span>
+                        ${followupStateBadge(e.state)}
+                        <span class="ev-duration">应完成 ${escapeHtml(e.dueTime || "--")}</span>
+                    </div>
+                    <div class="ev-summary">${escapeHtml(e.assetCode || "--")} · ${assetTypeLabel(e.assetType)} · 经办 ${escapeHtml(e.handler || "--")}</div>
+                </div>
+                <div class="ev-actions">
+                    ${e.alarmId != null ? `<button class="button small" onclick="openEventDetail(${Number(e.alarmId)})">查看事件</button>` : ""}
+                    ${e.state === "PENDING" ? `<button class="button small" onclick="startFollowup(${Number(e.id)})">开始回访</button>` : ""}
+                </div>
+            </article>`;
+    }
+
+    function effectiveNodeState(n) {
+        const online = Number(n.status) === 1;
+        if (!online) return "OFFLINE";
+        const h = String(n.healthStatus || "").toUpperCase();
+        if (h === "OFFLINE") return "OFFLINE";
+        if (h === "STALE") return "STALE";
+        if (h === "SENSOR_FAULT") return "SENSOR_FAULT";
+        return String(n.cloudState || "").toUpperCase() || "UNKNOWN";
+    }
+
+    function nodeAbnormal(n) {
+        const st = effectiveNodeState(n);
+        return st === "OFFLINE" || st === "STALE" || st === "SENSOR_FAULT" || st === "UNKNOWN";
+    }
+
+    function cloudStateLabel(value) {
+        const s = String(value || "").toUpperCase();
+        const map = { "ALARM": "报警", "WARNING": "预警", "NORMAL": "正常" };
+        return map[s] || "未知";
     }
 
     /* ==================== SVG 公园态势示意图 ==================== */
@@ -1027,6 +1195,17 @@
         if (el) el.addEventListener("change", applyLayerState);
     });
 
+    function openMapDialog() {
+        const dialog = document.getElementById("mapDialog");
+        const large = document.getElementById("forestSvgLarge");
+        const src = document.getElementById("forestSvg");
+        if (large && src) large.innerHTML = src.innerHTML;
+        const lg = document.getElementById("fmLegendLarge");
+        const legendSrc = document.getElementById("fmLegend");
+        if (lg && legendSrc) lg.innerHTML = legendSrc.innerHTML;
+        dialog.showModal();
+    }
+
     function zoneBlobPath(cx, cy, w, h) {
         const x0 = cx - w / 2, x1 = cx + w / 2;
         const y0 = cy - h / 2, y1 = cy + h / 2;
@@ -1056,17 +1235,28 @@
             </g>`;
     }
 
-    function cloudClass(state) {
-        const s = String(state || "").toUpperCase();
-        if (s === "ALARM") return "fm-node-alarm";
-        if (s === "WARNING" || s === "PREWARNING") return "fm-node-warn";
-        if (s === "NORMAL") return "fm-node-ok";
+    function nodeMapClass(n) {
+        const st = effectiveNodeState(n);
+        if (st === "ALARM") return "fm-node-alarm";
+        if (st === "WARNING") return "fm-node-warn";
+        if (st === "NORMAL") return "fm-node-ok";
         return "fm-node-off";
     }
 
+    function nodeStateLabel(n) {
+        const st = effectiveNodeState(n);
+        if (st === "NORMAL") return "运行正常";
+        if (st === "WARNING") return "烟雾预警";
+        if (st === "ALARM") return "烟雾报警";
+        if (st === "SENSOR_FAULT") return "传感器异常";
+        if (st === "STALE") return "数据过期";
+        if (st === "OFFLINE") return "设备离线";
+        return "状态不可确认";
+    }
+
     function nodeDot(n) {
-        return `<circle class="fm-node ${cloudClass(n.cloudState)}" cx="${n.mapX}" cy="${n.mapY}" r="5.5">
-            <title>${escapeHtml(n.nodeCode)} · ${escapeHtml(n.nodeName)}\n云端 ${escapeHtml(n.cloudState || "--")} · 风险 ${fmt(n.riskScore)}</title></circle>`;
+        return `<circle class="fm-node ${nodeMapClass(n)}" cx="${n.mapX}" cy="${n.mapY}" r="5.5">
+            <title>${escapeHtml(n.nodeCode)} · ${escapeHtml(n.nodeName)}\n云端 ${escapeHtml(n.cloudState || "--")} · ${nodeStateLabel(n)}</title></circle>`;
     }
 
     function treeMarker(t, affected) {
@@ -1186,23 +1376,90 @@
         const body = document.getElementById("nodeTable");
         if (!body) return;
         if (!forestState.nodes.length) {
-            body.innerHTML = '<tr><td colspan="8" class="empty">暂无监测节点</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="empty">暂无监测节点</td></tr>';
             return;
         }
         body.innerHTML = forestState.nodes.map(n => {
             const online = Number(n.status) === 1;
+            const abnormal = nodeAbnormal(n);
             return `
                 <tr>
                     <td>${escapeHtml(n.deviceId)}</td>
                     <td><b>${escapeHtml(n.nodeCode)}</b><br><span class="cell-sub">${escapeHtml(n.nodeName || "--")}</span></td>
                     <td>${escapeHtml(n.zoneName || "--")}</td>
+                    <td>${n.sourceType === "REAL" ? '<span class="badge badge-blue">真实</span>' : '<span class="badge badge-purple">DEMO</span>'}</td>
                     <td>${online ? '<span class="badge badge-green">在线</span>' : '<span class="badge badge-gray">离线</span>'}</td>
                     <td>${healthBadge(n.healthStatus)}</td>
-                    <td>${cloudStateBadge(n.cloudState)}</td>
-                    <td>${n.riskScore != null ? fmt(n.riskScore) : "--"}</td>
-                    <td>${n.mapX != null ? escapeHtml(n.mapX + ", " + n.mapY) : "--"}</td>
+                    <td>${abnormal
+                        ? `<span class="cell-sub">最后烟雾判定：${cloudStateLabel(n.cloudState)}</span><div class="cell-sub node-unconfirm">当前实时环境状态不可确认</div>`
+                        : cloudStateBadge(n.cloudState)}</td>
+                    <td class="cell-sub">${escapeHtml(n.lastReportTime || "--")}</td>
+                    <td><button class="button small" onclick="openNodeDetail(${Number(n.deviceId)})">查看</button></td>
                 </tr>`;
         }).join("");
+    }
+
+    /* ==================== 节点详情 ==================== */
+    async function openNodeDetail(id) {
+        const dialog = document.getElementById("nodeDetailDialog");
+        const body = document.getElementById("nodeDetailBody");
+        document.getElementById("nodeDetailTitle").innerText = `监测节点详情 #${id}`;
+        body.innerHTML = '<div class="detail-loading">加载中…</div>';
+        dialog.showModal();
+        try {
+            const d = await api(`/api/admin/forest/nodes/${id}`);
+            renderNodeDetail(body, d);
+        } catch (e) {
+            body.innerHTML = `<div class="detail-loading" style="color:#ff7975">${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function renderNodeDetail(body, d) {
+        const dev = d.device || {};
+        const rec = d.latestRecord || {};
+        const ins = d.insight || {};
+        const comp = ins.components || {};
+        const online = Number(dev.status) === 1;
+        const health = String(dev.healthStatus || "").toUpperCase();
+        const abnormal = !online || health === "OFFLINE" || health === "STALE" || health === "SENSOR_FAULT";
+        const smokeLine = abnormal
+            ? `<div class="nd-row"><span>最后烟雾判定</span><b class="muted-text">${cloudStateLabel(rec.cloudState)}</b></div>
+               <div class="nd-row"><span>当前实时环境状态</span><b class="muted-text node-unconfirm">不可确认</b></div>`
+            : `<div class="nd-row"><span>当前烟雾判定</span>${cloudStateBadge(rec.cloudState)}</div>`;
+        body.innerHTML = `
+            <div class="nd-grid">
+                <div class="nd-block">
+                    <div class="nd-block-title">基础档案</div>
+                    <div class="nd-row"><span>节点编号</span><b>${escapeHtml(dev.nodeCode || "--")}</b></div>
+                    <div class="nd-row"><span>节点名称</span><b>${escapeHtml(dev.nodeName || "--")}</b></div>
+                    <div class="nd-row"><span>类型</span><b>${escapeHtml(dev.sourceType || "--")}${dev.deviceId === 1001 ? " · 真实硬件" : ""}</b></div>
+                    <div class="nd-row"><span>所属分区</span><b>${escapeHtml(dev.zoneName || "--")}</b></div>
+                    <div class="nd-row"><span>IoTDA 链路</span><b>${escapeHtml(dev.iotDeviceId || "未绑定")}</b></div>
+                    <div class="nd-row"><span>最后有效上报</span><b>${escapeHtml(dev.lastReportTime || "--")}</b></div>
+                </div>
+                <div class="nd-block">
+                    <div class="nd-block-title">位置</div>
+                    <div class="nd-row"><span>地图坐标</span><b>${dev.mapX != null ? escapeHtml(dev.mapX + " , " + dev.mapY) : "--"}</b></div>
+                    <div class="nd-row"><span>纬度</span><b>${dev.latitude != null ? escapeHtml(dev.latitude) : "--"}</b></div>
+                    <div class="nd-row"><span>经度</span><b>${dev.longitude != null ? escapeHtml(dev.longitude) : "--"}</b></div>
+                </div>
+                <div class="nd-block">
+                    <div class="nd-block-title">实时状态</div>
+                    <div class="nd-row"><span>连接</span>${online ? '<b class="ok-text">在线</b>' : '<b class="bad-text">离线</b>'}</div>
+                    <div class="nd-row"><span>健康</span>${healthBadge(dev.healthStatus)}</div>
+                    ${smokeLine}
+                    <div class="nd-row"><span>Smoke Ratio</span><b>${rec.smokeRatio != null ? escapeHtml(rec.smokeRatio) : "--"}</b></div>
+                    <div class="nd-row"><span>动态基线</span><b>${rec.edgeBaseline != null ? escapeHtml(rec.edgeBaseline) : "--"}</b></div>
+                </div>
+                <div class="nd-block">
+                    <div class="nd-block-title">设备健康指数（透明规则）</div>
+                    <div class="dhi-score"><b>${ins.score != null ? ins.score : "--"}</b><span>${escapeHtml(ins.label || "")}</span></div>
+                    <div class="nd-row"><span>网络</span><b>${comp.network != null ? comp.network : "--"}</b></div>
+                    <div class="nd-row"><span>传感器</span><b>${comp.sensor != null ? comp.sensor : "--"}</b></div>
+                    <div class="nd-row"><span>数据新鲜度</span><b>${comp.freshness != null ? comp.freshness : "--"}</b></div>
+                    <div class="nd-row"><span>连续失败</span><b>${comp.consecutiveFailures != null ? comp.consecutiveFailures : "--"}</b></div>
+                </div>
+            </div>`;
     }
 
     /* ==================== 火险事件 ==================== */
@@ -1409,14 +1666,13 @@
                     <input id="droneNoteInput" class="input" placeholder="航拍复核说明（可选）">
                     <button class="button primary" onclick="dispatchDrone(${Number(alarm.id)})">派发无人机</button>
                 </div>
-                ${active.length ? '<div class="fd-hint">先点“推进状态”直到“现场”，再确认火点。</div>' : ""}
+                ${active.length ? '<div class="fd-hint">无人机状态推进（推进状态 / 确认火点）请在「演示工具」面板操作。</div>' : ""}
                 <div class="fd-mission-list">${missionRows}</div>
             </div>`;
     }
 
     function droneMissionRow(m) {
         const st = String(m.state || "").toUpperCase();
-        const onSite = st === "ON_SITE" || st === "RETURNED";
         const done = st === "COMPLETED";
         return `
             <div class="fd-mission">
@@ -1433,11 +1689,7 @@
                     <span>完成 ${escapeHtml(m.completeTime || "--")}</span>
                 </div>
                 ${m.resultNote ? `<div class="fd-mission-note">${escapeHtml(m.resultNote)}</div>` : ""}
-                <div class="fd-mission-actions">
-                    ${!done ? `<button class="button small" onclick="advanceDrone(${Number(m.id)})">推进状态</button>` : ""}
-                    ${onSite ? `<button class="button small" onclick="confirmDrone(${Number(m.id)}, true)">确认火点</button>
-                        <button class="button small" onclick="confirmDrone(${Number(m.id)}, false)">未发现火点</button>` : ""}
-                </div>
+                ${!done ? '<div class="fd-mission-actions"><span class="fd-hint">模拟无人机 · 状态推进（推进状态 / 确认火点）请在「演示工具」面板操作。</span></div>' : ""}
             </div>`;
     }
 
@@ -1593,6 +1845,13 @@
         return "badge-gray";
     }
 
+    function protCls(level) {
+        const s = String(level || "").toUpperCase();
+        if (s === "一级" || s === "CORE") return "prot-1";
+        if (s === "二级" || s === "HIGH") return "prot-2";
+        return "prot-3";
+    }
+
     function renderTrees() {
         const root = document.getElementById("treesGrid");
         if (!root) return;
@@ -1610,7 +1869,7 @@
                 <div class="tree-species">${escapeHtml(t.scientificName || t.species || "--")}</div>
                 <div class="tree-meta">
                     <span>树龄 ${t.ageYears != null ? escapeHtml(t.ageYears + " 年") : "--"}</span>
-                    <span>${escapeHtml(t.protectionLevel || "--")}保护</span>
+                    <span class="prot-badge ${protCls(t.protectionLevel)}">${escapeHtml(t.protectionLevel || "--")}保护</span>
                     <span>${escapeHtml(t.zoneName || "--")}</span>
                     <span>${escapeHtml(t.nodeCode || "--")}</span>
                 </div>
@@ -1825,7 +2084,6 @@
         }
         body.innerHTML = forestState.drones.map(m => {
             const st = String(m.state || "").toUpperCase();
-            const onSite = st === "ON_SITE" || st === "RETURNED";
             const done = st === "COMPLETED";
             return `
                 <tr>
@@ -1839,13 +2097,52 @@
                     <td>${done ? (Integer(m.confirmedFire) === 1 ? '<span class="badge badge-green">已确认火点</span>' : '<span class="badge badge-gray">未发现火点</span>') : "--"}</td>
                     <td>
                         <div class="action-group">
-                            ${m.alarmId != null ? `<button class="button small" onclick="openEventDetail(${Number(m.alarmId)})">事件</button>` : ""}
-                            ${!done ? `<button class="button small" onclick="advanceDrone(${Number(m.id)})">推进</button>` : ""}
-                            ${onSite ? `<button class="button small" onclick="confirmDrone(${Number(m.id)}, true)">确认火点</button>` : ""}
+                            <button class="button small" onclick="openDroneDetail(${Number(m.id)})">查看任务</button>
+                            ${m.alarmId != null ? `<button class="button small" onclick="openEventDetail(${Number(m.alarmId)})">查看事件</button>` : ""}
                         </div>
                     </td>
                 </tr>`;
         }).join("");
+    }
+
+    /* ==================== 无人机任务详情 ==================== */
+    function openDroneDetail(id) {
+        const mission = forestState.drones.find(m => String(m.id) === String(id));
+        const dialog = document.getElementById("droneDetailDialog");
+        const body = document.getElementById("droneDetailBody");
+        document.getElementById("droneDetailTitle").innerText = `无人机任务详情 #${id}`;
+        if (!mission) {
+            body.innerHTML = '<div class="detail-loading">未找到该任务，请先刷新任务列表。</div>';
+            dialog.showModal();
+            return;
+        }
+        const st = String(mission.state || "").toUpperCase();
+        const done = st === "COMPLETED";
+        body.innerHTML = `
+            <div class="nd-grid">
+                <div class="nd-block">
+                    <div class="nd-block-title">任务信息</div>
+                    <div class="nd-row"><span>任务编号</span><b>${escapeHtml(mission.missionCode || "--")}</b></div>
+                    <div class="nd-row"><span>无人机</span><b>${escapeHtml(mission.droneId || "--")}</b></div>
+                    <div class="nd-row"><span>任务类型</span><b>${escapeHtml(mission.missionType || "--")}</b></div>
+                    <div class="nd-row"><span>关联事件</span><b>${mission.alarmId != null ? "#" + mission.alarmId : "--"}</b></div>
+                </div>
+                <div class="nd-block">
+                    <div class="nd-block-title">状态</div>
+                    <div class="nd-row"><span>当前状态</span>${droneStateBadge(st)}</div>
+                    <div class="nd-row"><span>派发时间</span><b>${escapeHtml(mission.dispatchTime || "--")}</b></div>
+                    <div class="nd-row"><span>到达时间</span><b>${escapeHtml(mission.arriveTime || "--")}</b></div>
+                    <div class="nd-row"><span>完成时间</span><b>${escapeHtml(mission.completeTime || "--")}</b></div>
+                </div>
+                <div class="nd-block">
+                    <div class="nd-block-title">复核结果</div>
+                    <div class="nd-row"><span>火点确认</span>${done ? (Integer(mission.confirmedFire) === 1 ? '<b class="ok-text">已确认火点</b>' : '<b class="muted-text">未发现火点</b>') : '<b class="muted-text">待复核</b>'}</div>
+                    <div class="nd-row"><span>结果说明</span><b>${escapeHtml(mission.resultNote || "--")}</b></div>
+                    <div class="nd-row"><span>目标节点</span><b>${escapeHtml(mission.targetNodeCode || "--")}</b></div>
+                </div>
+            </div>
+            <div class="drone-demo-hint">模拟无人机 · 状态推进（推进状态 / 确认火点）请在「演示工具」面板操作。</div>`;
+        dialog.showModal();
     }
 
     /* ==================== 巡护管理：生态回访 ==================== */
@@ -2057,6 +2354,37 @@
     }
 
     /* ==================== DEMO 模拟控制台 ==================== */
+    function populateDemoMissions() {
+        const sel = document.getElementById("demoMissionSelect");
+        if (!sel) return;
+        sel.innerHTML = forestState.drones.map(m =>
+            `<option value="${Number(m.id)}">#${m.id} ${escapeHtml(m.missionCode || "")} · ${escapeHtml(m.droneId || "")} · ${escapeHtml(m.state || "")}</option>`
+        ).join("") || '<option value="">暂无无人机任务</option>';
+    }
+
+    async function refreshDemoMissions() {
+        await loadDrones();
+        populateDemoMissions();
+    }
+
+    async function demoAdvanceDrone() {
+        const sel = document.getElementById("demoMissionSelect");
+        const id = sel ? Number(sel.value) : 0;
+        if (!id) { showToast("请先选择无人机任务", "error"); return; }
+        await advanceDrone(id);
+        populateDemoMissions();
+    }
+
+    async function demoConfirmFire() {
+        const sel = document.getElementById("demoMissionSelect");
+        const id = sel ? Number(sel.value) : 0;
+        if (!id) { showToast("请先选择无人机任务", "error"); return; }
+        const confirmed = window.confirm("演示：确认该任务已到达现场并核实为火点？");
+        if (confirmed == null) return;
+        await confirmDrone(id, !!confirmed);
+        populateDemoMissions();
+    }
+
     async function loadDemoPanel() {
         try {
             const [devices, scen] = await Promise.all([
@@ -2069,6 +2397,8 @@
             if (!deviceSelect || !scenSelect) return;
 
             forestState.demoDevices = Array.isArray(devices) ? devices : [];
+
+            refreshDemoMissions();
 
             deviceSelect.innerHTML = forestState.demoDevices.map(d => {
                 const label = d.nodeName || d.nodeCode || `设备 ${d.deviceId}`;
