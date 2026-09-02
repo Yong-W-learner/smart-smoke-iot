@@ -49,6 +49,9 @@ public class ForestSensorCollectTask {
             jdbcTemplate.update(
                     "UPDATE forest_sensor_node SET smoke=?, online=?, status=?, updated_at=NOW() WHERE id=?",
                     smoke, online ? 1 : 0, status, REAL_SENSOR_ID);
+            jdbcTemplate.update(
+                    "INSERT INTO forest_sensor_reading(sensor_id,collect_time,smoke,source) VALUES(?,NOW(),?,'real')",
+                    REAL_SENSOR_ID, smoke);
             log.debug("真机 {} 已同步华为云烟雾 {} ppm，状态={}", REAL_SENSOR_ID, smoke, status);
         } catch (Exception e) {
             // 华为云瞬时异常或设备离线：标记离线，保留上一次烟雾值

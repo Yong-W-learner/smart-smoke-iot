@@ -9,8 +9,9 @@ const service = axios.create({
   timeout: 10000
 })
 
-// 现在测试阶段传感器接口不需要token，拦截器先不强制加
 service.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 

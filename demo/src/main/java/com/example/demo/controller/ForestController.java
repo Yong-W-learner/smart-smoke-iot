@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -73,16 +74,13 @@ public class ForestController {
         return jdbc.queryForList("SELECT point_label AS label,value FROM forest_trend_point WHERE metric=? ORDER BY sort_no", metric);
     }
 
-    /**
-     * 节点历史趋势。GT-01 对应华为云真机 device_id=1，烟雾读取 smoke_record
-     * 的最近采样；真机未上报的温湿度以及其他仿真节点仍返回仿真趋势，并明确标识来源。
-     */
+    /** 节点历史趋势：真机烟雾读取森林传感器采样表，其他指标使用平台仿真趋势。 */
     @GetMapping("/sensors/{id}/history")
     public Result<Map<String, Object>> sensorHistory(
             @PathVariable String id,
             @RequestParam(defaultValue = "smoke") String metric,
             @RequestParam(defaultValue = "120") Integer limit) {
-        if (!List.of("smoke", "temperature", "humidity").contains(metric)) {
+        if (!Arrays.asList("smoke", "temperature", "humidity").contains(metric)) {
             return Result.fail("不支持的历史指标");
         }
 
@@ -93,8 +91,8 @@ public class ForestController {
             int size = limit == null ? 120 : Math.max(10, Math.min(limit, 300));
             points = jdbc.queryForList(
                     "SELECT DATE_FORMAT(collect_time,'%H:%i:%s') AS label," +
-                            " smoke_concentration AS value,collect_time AS collectedAt" +
-                            " FROM smoke_record WHERE device_id=1" +
+                            " smoke AS value,collect_time AS collectedAt" +
+                            " FROM forest_sensor_reading WHERE sensor_id='GT-01' AND smoke IS NOT NULL" +
                             " ORDER BY collect_time DESC LIMIT " + size);
             Collections.reverse(points);
         } else {
@@ -103,7 +101,7 @@ public class ForestController {
         data.put("nodeId", id);
         data.put("metric", metric);
         data.put("source", real ? "real" : "simulated");
-        data.put("sourceText", real ? "华为云真机数据库" : "平台仿真历史");
+        data.put("sourceText", real ? "华为云真机采样" : "平台仿真历史");
         data.put("points", points);
         data.put("updatedAt", points.isEmpty() ? null : points.get(points.size() - 1).get("collectedAt"));
         return Result.ok(data);
@@ -140,7 +138,7 @@ public class ForestController {
         String status = text(mission.get("status"));
         boolean dailyPatrol = text(mission.get("incidentId")).isEmpty();
         if (dailyPatrol) {
-            if (!List.of("待执行", "已接收", "前往现场").contains(status)) return Result.fail("当前日常巡护任务状态不能开始");
+            if (!Arrays.asList("待执行", "已接收", "前往现场").contains(status)) return Result.fail("当前日常巡护任务状态不能开始");
         } else if (!"前往现场".equals(status)) {
             return Result.fail("警情核查任务请先完成接取和到场流程");
         }
@@ -154,7 +152,7 @@ public class ForestController {
     @Transactional
     public Result<Map<String, Object>> updateMissionStatus(@PathVariable String id, @RequestBody Map<String, Object> body) {
         String status = text(body.get("status"));
-        if (!List.of("已接收", "前往现场").contains(status)) return Result.fail("不支持的任务状态");
+        if (!Arrays.asList("已接收", "前往现场").contains(status)) return Result.fail("不支持的任务状态");
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM drone_mission WHERE id=?", Integer.class, id);
         if (count == null || count == 0) return Result.fail("巡护任务不存在");
         String ranger = text(body.get("ranger"));
@@ -374,7 +372,7 @@ public class ForestController {
     @Transactional
     public Result<Map<String, Object>> simulateIncident(@RequestBody Map<String, Object> body) {
         String requestedLevel = text(body.get("level"));
-        if (!List.of("一级", "二级", "三级").contains(requestedLevel)) return Result.fail("请选择一级、二级或三级警情");
+        if (!Arrays.asList("一级", "二级", "三级").contains(requestedLevel)) return Result.fail("请选择一级、二级或三级警情");
 
         List<Map<String, Object>> zoneRows = jdbc.queryForList("SELECT name FROM forest_zone ORDER BY CASE WHEN type LIKE '%古树%' THEN 0 ELSE 1 END,id");
         if (zoneRows.isEmpty()) return Result.fail("请先建立森林分区");
@@ -449,6 +447,8 @@ public class ForestController {
     public Result<String> updateSensor(@PathVariable String id, @RequestBody Map<String, Object> b) {
         jdbc.update("UPDATE forest_sensor_node SET smoke=?,temperature=?,humidity=?,co=?,status=?,online=1,updated_at=NOW() WHERE id=?",
                 nullableDecimal(b.get("smoke")), nullableDecimal(b.get("temperature")), nullableDecimal(b.get("humidity")), nullableDecimal(b.get("co")), text(b.get("status")), id);
+        jdbc.update("INSERT INTO forest_sensor_reading(sensor_id,collect_time,smoke,temperature,humidity,co,source) VALUES(?,NOW(),?,?,?,?,?)",
+                id, nullableDecimal(b.get("smoke")), nullableDecimal(b.get("temperature")), nullableDecimal(b.get("humidity")), nullableDecimal(b.get("co")), "simulated");
         return Result.ok("传感数据已保存");
     }
 

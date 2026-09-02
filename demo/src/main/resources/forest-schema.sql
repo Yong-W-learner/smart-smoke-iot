@@ -2,9 +2,24 @@ CREATE TABLE IF NOT EXISTS sys_user (
   id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(64) NOT NULL UNIQUE,
   role VARCHAR(16) NOT NULL DEFAULT 'ranger',
-  building INT NULL, floor INT NULL, room INT NULL,
   phone VARCHAR(20) NULL, job_num VARCHAR(32) NULL,
   password VARCHAR(128) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS forest_camera_review (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  sensor_id VARCHAR(32) NULL,
+  zone VARCHAR(100) NULL,
+  level VARCHAR(16) NULL,
+  smoke_concentration DOUBLE NULL,
+  image_base64 LONGTEXT NOT NULL,
+  create_time DATETIME NOT NULL,
+  ai_verdict VARCHAR(16) NULL,
+  ai_basis VARCHAR(1000) NULL,
+  ai_detections LONGTEXT NULL,
+  ai_boxes LONGTEXT NULL,
+  KEY idx_forest_camera_review_time (create_time),
+  KEY idx_forest_camera_review_sensor (sensor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS forest_park (
@@ -46,6 +61,18 @@ CREATE TABLE IF NOT EXISTS forest_sensor_node (
   latitude DOUBLE NULL,
   longitude DOUBLE NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS forest_sensor_reading (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  sensor_id VARCHAR(32) NOT NULL,
+  collect_time DATETIME NOT NULL,
+  smoke DOUBLE NULL,
+  temperature DOUBLE NULL,
+  humidity DOUBLE NULL,
+  co DOUBLE NULL,
+  source VARCHAR(16) NOT NULL,
+  KEY idx_forest_sensor_reading_sensor_time (sensor_id, collect_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS forest_drone (
@@ -321,7 +348,7 @@ UPDATE forest_incident SET zone=CASE id WHEN 'FIRE-20260830-001' THEN '千年银
 UPDATE forest_broadcast SET title='橙色火险提示：全园禁止野外用火',message='古树保护区空气干燥、风力较大，请勿携带火种进入林区。当前未确认真实火情。',area='千年银杏古树区及周边步道',exit_name='游客中心集结点 / 东侧安全出口' WHERE id=1 AND NOT EXISTS (SELECT 1 FROM app_data_migration WHERE migration_key='forest-utf8-repair-v2');
 INSERT IGNORE INTO app_data_migration(migration_key) VALUES('forest-utf8-repair-v2');
 
--- Repair the legacy equipment seed rows without changing their current status.
+-- Repair earlier equipment seed rows without changing their current status.
 UPDATE forest_equipment SET
   type=CASE id WHEN 'CAM-01' THEN '固定摄像头' WHEN 'CAST-01' THEN '广播设备' WHEN 'UAV-01' THEN '无人机' ELSE '传感节点' END,
   location=CASE id WHEN 'CAM-01' THEN '银杏区南侧瞭望杆' WHEN 'CAST-01' THEN '两处古树保护区' WHEN 'GT-01' THEN '千年银杏古树区' WHEN 'GT-02' THEN '千年银杏古树区' WHEN 'GT-06' THEN '南坡生态林' ELSE '北侧巡护站' END,

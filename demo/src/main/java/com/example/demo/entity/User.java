@@ -12,10 +12,7 @@ public class User {
     private Long id;
     private String username;
     private String role; // ranger护林员
-    private Integer building;
-    private Integer floor;
-    private Integer room;
     private String phone;
-    private String jobNum; //管理员工号，居民null
+    private String jobNum;
     private String password;
 }

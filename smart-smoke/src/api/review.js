@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-// 上传现场画面（居民端报警时抓拍）
+// 上传森林摄像头现场画面并执行 AI 复核
 export function uploadReview(data) {
   return request({
     url: '/api/review/upload',

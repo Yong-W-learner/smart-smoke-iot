@@ -3,7 +3,7 @@ package com.example.demo.service;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
-import com.example.demo.entity.AlarmReview;
+import com.example.demo.entity.ForestCameraReview;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +43,7 @@ public class AiReviewService {
         this.restTemplate = restTemplate;
     }
 
-    public AiResult analyze(AlarmReview review) {
+    public AiResult analyze(ForestCameraReview review) {
         // 1. 调用 YOLO 视觉识别
         List<Map<String, Object>> detections = new ArrayList<>();
         List<Map<String, Object>> boxes = new ArrayList<>();

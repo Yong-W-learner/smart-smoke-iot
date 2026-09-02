@@ -7,10 +7,6 @@ const routes = [
   { path: '/ranger', component: () => import('@/views/forest/RangerHome.vue') },
   { path: '/mobile', component: () => import('@/views/forest/RangerMobile.vue') },
   { path: '/ranger/equipment', component: () => import('@/views/forest/ForestMaintenance.vue') },
-  { path: '/admin/:pathMatch(.*)*', redirect: '/ranger' },
-  { path: '/responder', redirect: '/ranger' },
-  { path: '/resident/:pathMatch(.*)*', redirect: '/visitor-alert' },
-  { path: '/register', redirect: '/visitor-alert' },
   { path: '/:pathMatch(.*)*', redirect: '/visitor-alert' }
 ]
 
