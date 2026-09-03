@@ -27,6 +27,23 @@ services:
       DB_URL: jdbc:mysql://mysql:3306/smoke_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: root
       SERVER_PORT: 8080
+      # ---- 本地 AI 助手（Ollama + Qdrant；OLLAMA 占位 Key 不是真实密钥）----
+      # 注意：AI 服务不可用时后端照常启动与工作，故不 depends_on ollama/qdrant。
+      FOREST_AI_ENABLED: ${FOREST_AI_ENABLED:-true}
+      FOREST_LLM_BASE_URL: ${FOREST_LLM_BASE_URL:-http://ollama:11434/v1}
+      FOREST_LLM_API_URL: ${FOREST_LLM_API_URL:-http://ollama:11434/v1/chat/completions}
+      FOREST_LLM_API_KEY: ${FOREST_LLM_API_KEY:-ollama}
+      FOREST_LLM_MODEL: ${FOREST_LLM_MODEL:-qwen3:4b}
+      FOREST_EMBEDDING_MODEL: ${FOREST_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      FOREST_QDRANT_URL: ${FOREST_QDRANT_URL:-http://qdrant:6333}
+      FOREST_AI_TIMEOUT_SECONDS: ${FOREST_AI_TIMEOUT_SECONDS:-120}
+      FOREST_AI_MAX_CONTEXT_MESSAGES: ${FOREST_AI_MAX_CONTEXT_MESSAGES:-10}
+      FOREST_AI_TOP_K: ${FOREST_AI_TOP_K:-5}
+      FOREST_KNOWLEDGE_DIR: /app/knowledge
+      FOREST_KNOWLEDGE_UPLOAD_DIR: /app/knowledge-uploads
+    volumes:
+      - ../knowledge:/app/knowledge:ro
+      - forest_ai_uploads:/app/knowledge-uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -44,5 +61,60 @@ services:
     depends_on:
       - backend
 
+  # ---- 本地大模型推理（不映射宿主端口，仅 compose 内部网络可达，自动回退 CPU）----
+  ollama:
+    image: m.daocloud.io/docker.io/ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - forest_ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 20s
+
+  # 一次性初始化：等待 Ollama 健康后拉取对话与嵌入模型（已存在则秒过，不重复下载）
+  ollama-init:
+    image: m.daocloud.io/docker.io/ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[ollama-init] waiting for ollama api..."
+        until ollama list >/dev/null 2>&1; do sleep 5; done
+        echo "[ollama-init] pulling qwen3:4b (约 2.5GB，首次需要一段时间)..."
+        ollama pull qwen3:4b || echo "[ollama-init] qwen3:4b 拉取失败，可稍后手动执行: docker compose exec ollama ollama pull qwen3:4b"
+        echo "[ollama-init] pulling qwen3-embedding:0.6b (约 640MB)..."
+        ollama pull qwen3-embedding:0.6b || echo "[ollama-init] embedding 模型拉取失败，可稍后手动执行: docker compose exec ollama ollama pull qwen3-embedding:0.6b"
+        echo "[ollama-init] done: ollama list ->"
+        ollama list || true
+    restart: "no"
+
+  # ---- 本地向量知识库（不映射宿主端口，仅 compose 内部网络可达）----
+  qdrant:
+    image: m.daocloud.io/docker.io/qdrant/qdrant:latest
+    restart: unless-stopped
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - forest_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
 volumes:
   forest_mysql_data:
+  forest_ollama_data:
+  forest_qdrant_data:
+  forest_ai_uploads:

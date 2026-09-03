@@ -11,8 +11,10 @@
                     ├─ MySQL 8
                     ├─ 华为云 IoTDA（可选真机）
                     ├─ YOLO 服务（可选）
-                    └─ OpenAI 兼容大模型（可选）
+                    └─ Ollama 本地大模型 + Qdrant 向量知识库（AI 助手，全部本地运行，无云端调用、无真实 API Key）
 ```
+
+AI 不可用时原系统功能与火情报警流程完全不受影响。
 
 | 目录 | 用途 |
 |---|---|
@@ -76,7 +78,10 @@ DB_PASSWORD=请设置一个数据库密码
 | `HUAWEI_IOT_PROJECT_ID` | 真机需要 | 华为云项目 ID |
 | `HUAWEI_IOT_DEVICE_ID` | 真机需要 | 烟感设备 ID |
 | `YOLO_SERVICE_URL` | 否 | 摄像头识别服务；缺失时使用浓度规则判定 |
-| `FOREST_LLM_API_URL/KEY/MODEL` | 否 | OpenAI 兼容接口；缺失时使用本地规则总结 |
+| `FOREST_AI_ENABLED` | 否 | 本地 AI 助手总开关，默认 `true`；`false` 可整体关闭 |
+| `FOREST_LLM_BASE_URL/URL/KEY/MODEL` | 否 | 本地 Ollama OpenAI 兼容接口；Key 固定填占位符 `ollama`，不是真实密钥 |
+| `FOREST_EMBEDDING_MODEL/FOREST_QDRANT_URL` | 否 | 本地嵌入模型与向量库地址 |
+| `FOREST_AI_TIMEOUT_SECONDS/TOP_K/MAX_CONTEXT_MESSAGES` | 否 | AI 超时/检索条数/上下文轮数 |
 
 高德地图 Key 必须选择“Web端（JS API）”，新 Key 需要同时填写安全密钥。真实密钥只放在 `deploy/.env.local`，该文件已被 Git 忽略。
 
@@ -84,10 +89,16 @@ DB_PASSWORD=请设置一个数据库密码
 
 ### 4. 构建并启动
 
-在仓库根目录运行：
+在仓库根目录运行（CPU 模式，任何机器都能启动）：
 
 ```powershell
 docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml up -d --build
+```
+
+有 NVIDIA GPU（建议 ≥ 6GB 显存，如 RTX 4060 Laptop 8GB）时追加 GPU 覆盖文件：
+
+```powershell
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml -f .\deploy\compose.gpu.yml up -d --build
 ```
 
 首次构建需要下载基础镜像和依赖，完成后查看状态：
@@ -96,7 +107,7 @@ docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml up -d --bu
 docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml ps
 ```
 
-三个服务应处于 `Up` 状态，MySQL 应显示 `healthy`。
+核心服务 `mysql`、`backend`、`frontend` 应处于 `Up` 状态（MySQL 显示 `healthy`）；`ollama`、`qdrant` 为 AI 助手依赖，即使异常也不影响前三者。`ollama-init` 是一次性任务，首次会显示 `Exited (0)`。
 
 ### 5. 访问系统
 
@@ -106,14 +117,101 @@ docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml ps
 | 护林员登录 | [http://localhost/login](http://localhost/login) |
 | 后端接口验证 | [http://localhost/api/forest/bootstrap](http://localhost/api/forest/bootstrap) |
 
-演示护林员账号：
+演示账号（课程演示级，公网部署前请删除或改密）：
 
 ```text
-用户名：ranger
-密码：ranger123
+护林员：ranger / ranger123
+管理员：admin / admin123（可维护 AI 知识库）
 ```
 
 若修改了 `WEB_PORT`，例如 `WEB_PORT=8088`，访问地址相应改为 `http://localhost:8088`。
+
+## 本地 AI 助手（森林安全智能助手）
+
+### 功能
+
+登录护林员后打开侧边菜单「森林安全AI助手」（或访问 `/ranger/ai`）：
+
+- 基于 `knowledge/` 知识库（部署、接口、设备、告警阈值、巡护流程等）回答项目问题，并列出来源文档。
+- 通过后端**只读白名单工具**查询实时业务数据：未结案火情、事件详情、设备状态与统计、传感器聚合历史、高风险设备、无人机任务、天气与火险、巡护汇总与报告草稿。
+- 生成巡护总结、事件分析、日报；回答区分“知识库事实 / 实时数据事实 / 模型推断”。
+- 建议操作按钮只跳转现有页面。AI 没有任何写权限：不能修改设备、删除数据、关闭或降级告警；火情等高风险结论一律提示人工复核。
+- 会话保存于 MySQL（`ai_conversation`/`ai_message`），对话与工具调用写入 `ai_audit_log` 审计（参数脱敏，不保存密码/Token/Cookie/API Key）。
+
+### 硬件与模型
+
+| 项 | 值 |
+|---|---|
+| 对话模型 | `qwen3:4b`（约 2.5GB） |
+| 嵌入模型 | `qwen3-embedding:0.6b`（约 640MB） |
+| 显存建议 | 8GB 独立显卡（如 RTX 4060 Laptop）；CPU 也可运行，回答变慢 |
+| 内存建议 | Docker Desktop 分配 ≥ 6GB |
+
+Docker Desktop 要求：启用 WSL2 后端；使用 GPU 时安装 NVIDIA 驱动（592+）并在 Docker Desktop 设置中保持 GPU support 开启。
+
+### 首次模型下载
+
+`ollama-init` 服务会在 Ollama 健康后自动执行两条 `ollama pull`（已存在则秒过、不重复下载）。
+网络受限导致失败时，容器会留下提示，可稍后手动补拉：
+
+```powershell
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml exec ollama ollama pull qwen3:4b
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml exec ollama ollama pull qwen3-embedding:0.6b
+```
+
+### 健康检查
+
+浏览器或 PowerShell 访问（经前端 Nginx 转发，无需登录）：
+
+```powershell
+Invoke-RestMethod http://localhost/api/forest/ai/health | ConvertTo-Json -Depth 5
+```
+
+返回 `ollamaReachable / chatModelExists / embeddingModelExists / qdrantReachable / knowledgePoints / degraded / degradedReasons`。模型缺失时 `degradedReasons` 会直接给出需要执行的 `ollama pull` 命令。
+
+### 知识库
+
+- 源目录：仓库根 `knowledge/`（容器内只读挂载）。放新的 `.md/.txt` 文档后，用管理员账号在 AI 页面点「重建知识库」，或：`POST /api/forest/ai/knowledge/reindex`（仅 admin）。
+- 管理员页面还可「导入文档」（`.md/.txt/.pdf`，≤5MB），保存在独立数据卷，不改仓库。
+- 按标题/自然段切为 400~800 字块（约 100 字重叠），`content_hash` 未变的文档自动跳过；文档删除/修改会同步清理旧向量。
+- `.env`、密钥、日志、`node_modules`、`target`、`dist`、二进制等永远不会被索引。
+- 缺少正式消防预案时仓库内只有标注“需管理员补充”的模板，AI 不会编造规范条款。
+
+### 停止 / 重启 / 卸载
+
+```powershell
+# 停止（保留全部数据）
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml down
+# 重新启动
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml up -d
+# 完全卸载 AI 数据（危险：将删除模型权重 forest_ollama_data、
+# 向量库 forest_qdrant_data、上传文档 forest_ai_uploads；
+# 若一并删除 forest_mysql_data 还会清空业务与对话/审计数据库）
+docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml down
+docker volume rm deploy_forest_ollama_data deploy_forest_qdrant_data deploy_forest_ai_uploads
+```
+
+### CPU / GPU 回退
+
+默认 `compose.yml` 纯 CPU，保证任何机器可启动；带 `-f compose.gpu.yml` 时 Ollama 使用 NVIDIA GPU。若 GPU 覆盖导致容器起不来，去掉该文件重启即可，模型与知识库数据不受影响。
+
+### 常见问题
+
+| 现象 | 处理 |
+|---|---|
+| health 显示 `chatModelExists=false` | 执行上面两条 `ollama pull`；ollama-init 日志：`docker compose logs ollama-init` |
+| 首次提问很慢 | 模型冷加载进显存，30 分钟内保持常驻（`OLLAMA_KEEP_ALIVE=30m`） |
+| AI 页面提示“模型不可用” | 回答会自动降级为系统直接查询的实时数据摘要，业务功能不受影响 |
+| 知识检索为空 | 确认 `knowledgePoints>0`；管理员点「重建知识库」 |
+| 普通用户点重建返回 403 | 预期行为，重建/导入仅 admin |
+
+### 安全与权限说明
+
+- AI、Ollama、Qdrant 均不映射宿主端口，仅 compose 内部网络可达；`FOREST_LLM_API_KEY=ollama` 只是协议占位符。
+- 对话只能访问当前登录用户的数据；清除会话仅限本人；知识库导入/重建仅限 admin（后端强制校验，非前端隐藏）。
+- 模型不能生成/执行 SQL，不能指定类名方法名，只能触发白名单只读工具；知识库文本按“不可信引用”处理，不能覆盖系统提示词。
+- 限流：单用户每分钟 10 次、输入 ≤2000 字、模型并发 2、超时默认 120 秒；接口不输出堆栈、连接串与绝对路径。
+- 可用 `FOREST_AI_ENABLED=false` 整体关闭 AI；巡护总结在模型不可用时自动采用规则总结。
 
 ## 日常管理
 

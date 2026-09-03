@@ -7,6 +7,7 @@ const routes = [
   { path: '/ranger', component: () => import('@/views/forest/RangerHome.vue') },
   { path: '/mobile', component: () => import('@/views/forest/RangerMobile.vue') },
   { path: '/ranger/equipment', component: () => import('@/views/forest/ForestMaintenance.vue') },
+  { path: '/ranger/ai', component: () => import('@/views/forest/AiAssistant.vue') },
   { path: '/:pathMatch(.*)*', redirect: '/visitor-alert' }
 ]
 
@@ -20,7 +21,7 @@ router.beforeEach((to) => {
   if (['/visitor-alert', '/login'].includes(to.path)) return true
   if (!localStorage.getItem('token')) return '/login'
   const role = currentRole()
-  if (to.path.startsWith('/ranger') || to.path.startsWith('/mobile')) return role === 'ranger' ? true : '/login'
+  if (to.path.startsWith('/ranger') || to.path.startsWith('/mobile')) return (role === 'ranger' || role === 'admin') ? true : '/login'
   return true
 })
 

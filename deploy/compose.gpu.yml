@@ -1,0 +1,13 @@
+# NVIDIA GPU 覆盖文件（可选）。用法：
+#   docker compose --env-file .\deploy\.env.local -f .\deploy\compose.yml -f .\deploy\compose.gpu.yml up -d
+# 前提：Docker Desktop 已启用 WSL2 + NVIDIA 容器工具包（nvidia-smi 在容器内可用）。
+# 若 GPU 环境不可用，请去掉 -f compose.gpu.yml 回到默认 CPU 模式，其余功能完全一致。
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

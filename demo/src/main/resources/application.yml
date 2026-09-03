@@ -8,9 +8,14 @@ spring:
   sql:
     init:
       mode: always
-      schema-locations: classpath:forest-schema.sql
+      schema-locations: classpath:forest-schema.sql,classpath:forest-ai-schema.sql
       encoding: UTF-8
       continue-on-error: false
+
+  servlet:
+    multipart:
+      max-file-size: ${FOREST_AI_MAX_UPLOAD_MB:5}MB
+      max-request-size: ${FOREST_AI_MAX_UPLOAD_MB:5}MB
 
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -26,6 +31,24 @@ forest:
     api-url: ${FOREST_LLM_API_URL:}
     api-key: ${FOREST_LLM_API_KEY:}
     model: ${FOREST_LLM_MODEL:gpt-4o-mini}
+  ai:
+    # 本地 AI 助手（Ollama + Qdrant）。任何一项不可用时自动降级，不影响原有业务。
+    enabled: ${FOREST_AI_ENABLED:true}
+    base-url: ${FOREST_LLM_BASE_URL:http://127.0.0.1:11434/v1}
+    chat-url: ${FOREST_LLM_API_URL:}
+    api-key: ${FOREST_LLM_API_KEY:ollama}
+    chat-model: ${FOREST_LLM_MODEL:qwen3:4b}
+    embedding-model: ${FOREST_EMBEDDING_MODEL:qwen3-embedding:0.6b}
+    qdrant-url: ${FOREST_QDRANT_URL:http://127.0.0.1:6333}
+    qdrant-collection: ${FOREST_QDRANT_COLLECTION:forest_knowledge}
+    timeout-seconds: ${FOREST_AI_TIMEOUT_SECONDS:120}
+    max-context-messages: ${FOREST_AI_MAX_CONTEXT_MESSAGES:10}
+    top-k: ${FOREST_AI_TOP_K:5}
+    max-input-length: ${FOREST_AI_MAX_INPUT_LENGTH:2000}
+    rate-limit-per-minute: ${FOREST_AI_RATE_LIMIT:10}
+    max-concurrent-calls: ${FOREST_AI_MAX_CONCURRENCY:2}
+    knowledge-dir: ${FOREST_KNOWLEDGE_DIR:../knowledge}
+    upload-dir: ${FOREST_KNOWLEDGE_UPLOAD_DIR:../knowledge-uploads}
 
 huawei:
   iot:

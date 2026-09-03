@@ -20,7 +20,7 @@ public class UserController {
     private UserMapper userMapper;
 
     /**
-     * 森林景区登录接口：仅允许护林员账号。
+     * 森林景区登录接口：允许护林员与管理员账号（管理员用于 AI 知识库维护）。
      */
     @PostMapping("/login")
     public Result<LoginVO> login(@RequestBody LoginDTO dto){
@@ -31,8 +31,8 @@ public class UserController {
         if(user == null){
             return Result.fail("用户名或密码错误");
         }
-        if (!"ranger".equals(user.getRole())) {
-            return Result.fail("该账号不是护林员账号");
+        if (!"ranger".equals(user.getRole()) && !"admin".equals(user.getRole())) {
+            return Result.fail("该账号不是护林员或管理员账号");
         }
         //TODO 后续替换为真实JWT生成token，现在模拟
         String mockToken = "mock-token-" + user.getUsername();

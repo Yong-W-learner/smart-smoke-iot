@@ -11,3 +11,5 @@
 !**/.env.example
 *.log
 .DS_Store
+# 本地 AI 助手运行时数据（非仓库知识源文档）
+/knowledge-uploads/

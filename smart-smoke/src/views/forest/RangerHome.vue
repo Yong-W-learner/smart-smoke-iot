@@ -10,8 +10,9 @@
         <el-menu-item index="drone"><el-icon><Position /></el-icon><span>无人机巡护</span></el-menu-item>
         <el-menu-item index="broadcast"><el-icon><Bell /></el-icon><span>广播与疏散</span></el-menu-item>
         <el-menu-item index="equipment"><el-icon><Monitor /></el-icon><span>设备运行保障</span><span v-if="equipmentFaultCount" class="menu-count" :aria-label="`待处理设备异常 ${equipmentFaultCount} 条`"><b>{{ equipmentFaultCount > 99 ? '99+' : equipmentFaultCount }}</b></span></el-menu-item>
+        <el-menu-item index="ai"><el-icon><ChatDotSquare /></el-icon><span>森林安全AI助手</span></el-menu-item>
       </el-menu>
-      <div class="account"><el-avatar>{{ userName.charAt(0) }}</el-avatar><div><b>{{ userName }}</b><span>护林员</span></div><el-button text circle @click="logout"><el-icon><SwitchButton /></el-icon></el-button></div>
+      <div class="account"><el-avatar>{{ userName.charAt(0) }}</el-avatar><div><b>{{ userName }}</b><span>{{ user.role==='admin'?'管理员':'护林员' }}</span></div><el-button text circle @click="logout"><el-icon><SwitchButton /></el-icon></el-button></div>
     </aside>
 
     <main>
@@ -120,7 +121,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MostlyCloudy, DataBoard, Sunny, TrendCharts, Warning, Position, Bell, SwitchButton, UserFilled, Connection, Camera, Promotion, Monitor, Message, Guide, Iphone } from '@element-plus/icons-vue'
+import { MostlyCloudy, DataBoard, Sunny, TrendCharts, Warning, Position, Bell, SwitchButton, UserFilled, Connection, Camera, Promotion, Monitor, Message, Guide, Iphone, ChatDotSquare } from '@element-plus/icons-vue'
 import LiveLineChart from '@/components/LiveLineChart.vue'
 import ForestMap from '@/components/ForestMap.vue'
 import DroneOperations from '@/components/DroneOperations.vue'
@@ -270,7 +271,7 @@ function openPhotoUpload(){photoForm.value={...emptyPhotoForm(),zoneName:zones.v
 function onPhotoChange(file){const raw=file?.raw;if(!raw)return;if(raw.size>1024*1024){ElMessage.warning('演示环境单张照片请控制在 1MB 以内；真机接入时建议上传对象存储地址');return}const reader=new FileReader();reader.onload=()=>{photoForm.value.imageData=String(reader.result||'')};reader.readAsDataURL(raw)}
 async function savePatrolPhoto(){if(!photoForm.value.imageData&&!photoForm.value.objectUrl)return ElMessage.warning('请选择需要归档的照片');if(!photoForm.value.category)return ElMessage.warning('请选择影像分类');photoSaving.value=true;try{const res=await addForestMissionPhoto(patrolDetail.value.id,photoForm.value);if(res.code!==200)throw new Error(res.msg||'照片保存失败');patrolPhotos.value.unshift(res.data);photoDialog.value=false;photoFilter.value='全部';ElMessage.success('照片已按任务、分区与标签归档')}catch(err){ElMessage.error(err.message||'照片保存失败')}finally{photoSaving.value=false}}
 async function publishBroadcast(){const alert={level:broadcast.value.type==='evacuate'?'danger':'warning',title:broadcast.value.type==='evacuate'?'紧急疏散通知':'森林公园安全提示',message:broadcast.value.message,area:broadcast.value.areas.join('、'),exit:broadcast.value.exit};try{const res=await publishForestBroadcast(alert);if(res.code!==200)throw new Error(res.msg||'广播指令下发失败');await loadBroadcastHistory(true);ElMessage.success('广播指令已保存，最近下发记录已更新')}catch(err){ElMessage.error(err.message||'广播指令下发失败')}}
-function selectMenu(key){if(key==='equipment'){router.push('/ranger/equipment');return}active.value=key}
+function selectMenu(key){if(key==='equipment'){router.push('/ranger/equipment');return}if(key==='ai'){router.push('/ranger/ai');return}active.value=key}
 function selectMapZone(arg){if(arg&&typeof arg==='object'){const zone=zones.value.find(z=>String(z.id)===String(arg.id))||zones.value.find(z=>z.name===arg.name);if(zone)selectedZone.value=zone;else if(arg.name)selectedZone.value={name:arg.name,risk:arg.risk||'中',trees:0};return}const zone=zones.value.find(item=>item.id===arg);if(zone)selectedZone.value=zone}
 const round6=v=>Math.round(v*1e6)/1e6
 function openZoneManager(){zoneManagerOpen.value=true}
